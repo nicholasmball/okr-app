@@ -115,6 +115,90 @@ describe('Key Results actions', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ assignee_id: null });
   });
 
+  it('getKeyResult returns a single KR with check-ins', async () => {
+    const mockKR = {
+      id: 'kr1',
+      title: 'Reduce incidents',
+      assignee: { id: 'u1', full_name: 'Alice' },
+      check_ins: [{ id: 'ci1', value: 50, status: 'on_track' }],
+    };
+    mockSingle.mockResolvedValue({ data: mockKR, error: null });
+    mockEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ select: mockSelect });
+
+    const { getKeyResult } = await import('@/lib/actions/key-results');
+    const result = await getKeyResult('kr1');
+
+    expect(mockFrom).toHaveBeenCalledWith('key_results');
+    expect(result).toEqual(mockKR);
+  });
+
+  it('updateKeyResult updates title without fetching current values', async () => {
+    // First call: update KR (no currentValue/targetValue, so no fetch needed)
+    const mockUpdatedKR = { id: 'kr1', title: 'New Title', objective_id: 'obj-1' };
+    const mockUpdateSingle = vi.fn().mockResolvedValue({ data: mockUpdatedKR, error: null });
+    const mockUpdateSelect = vi.fn().mockReturnValue({ single: mockUpdateSingle });
+    const mockUpdateEq = vi.fn().mockReturnValue({ select: mockUpdateSelect });
+    const mockUpdateFn = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+
+    // Second call: recalculate — fetch KR scores
+    const mockScoresEq = vi.fn().mockResolvedValue({ data: [{ score: 0.5 }, { score: 0.7 }], error: null });
+    const mockScoresSelect = vi.fn().mockReturnValue({ eq: mockScoresEq });
+
+    // Third call: update objective score
+    const mockObjUpdateEq = vi.fn().mockResolvedValue({ error: null });
+    const mockObjUpdate = vi.fn().mockReturnValue({ eq: mockObjUpdateEq });
+
+    mockFrom
+      .mockReturnValueOnce({ update: mockUpdateFn })
+      .mockReturnValueOnce({ select: mockScoresSelect })
+      .mockReturnValueOnce({ update: mockObjUpdate });
+
+    const { updateKeyResult } = await import('@/lib/actions/key-results');
+    const result = await updateKeyResult({ id: 'kr1', title: 'New Title' });
+
+    expect(result).toEqual(mockUpdatedKR);
+    expect(mockUpdateFn).toHaveBeenCalledWith({ title: 'New Title' });
+  });
+
+  it('updateKeyResult recalculates score when currentValue changes', async () => {
+    // First call: fetch current KR values for score calc
+    const mockFetchSingle = vi.fn().mockResolvedValue({
+      data: { current_value: 0, target_value: 100 },
+      error: null,
+    });
+    const mockFetchEq = vi.fn().mockReturnValue({ single: mockFetchSingle });
+    const mockFetchSelect = vi.fn().mockReturnValue({ eq: mockFetchEq });
+
+    // Second call: update KR with new value + computed score
+    const mockUpdatedKR = { id: 'kr1', current_value: 50, score: 0.5, objective_id: 'obj-1' };
+    const mockUpdateSingle = vi.fn().mockResolvedValue({ data: mockUpdatedKR, error: null });
+    const mockUpdateSelect = vi.fn().mockReturnValue({ single: mockUpdateSingle });
+    const mockUpdateEq = vi.fn().mockReturnValue({ select: mockUpdateSelect });
+    const mockUpdateFn = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+
+    // Third call: recalculate — fetch KR scores
+    const mockScoresEq = vi.fn().mockResolvedValue({ data: [{ score: 0.5 }], error: null });
+    const mockScoresSelect = vi.fn().mockReturnValue({ eq: mockScoresEq });
+
+    // Fourth call: update objective score
+    const mockObjUpdateEq = vi.fn().mockResolvedValue({ error: null });
+    const mockObjUpdate = vi.fn().mockReturnValue({ eq: mockObjUpdateEq });
+
+    mockFrom
+      .mockReturnValueOnce({ select: mockFetchSelect })
+      .mockReturnValueOnce({ update: mockUpdateFn })
+      .mockReturnValueOnce({ select: mockScoresSelect })
+      .mockReturnValueOnce({ update: mockObjUpdate });
+
+    const { updateKeyResult } = await import('@/lib/actions/key-results');
+    const result = await updateKeyResult({ id: 'kr1', currentValue: 50 });
+
+    expect(result).toEqual(mockUpdatedKR);
+    expect(mockUpdateFn).toHaveBeenCalledWith({ current_value: 50, score: 0.5 });
+  });
+
   it('deleteKeyResult removes the KR', async () => {
     // First call: get objective_id
     const mockGetSingle = vi.fn().mockResolvedValue({ data: { objective_id: 'o1' }, error: null });

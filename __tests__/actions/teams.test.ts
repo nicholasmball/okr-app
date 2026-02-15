@@ -121,6 +121,41 @@ describe('Team actions', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ team_lead_id: 'u1' });
   });
 
+  it('getTeam returns a single team with members', async () => {
+    const mockTeam = {
+      id: 't1',
+      name: 'Engineering',
+      team_lead: { id: 'u1', full_name: 'Alice' },
+      team_memberships: [
+        { id: 'tm1', user_id: 'u1', joined_at: '', profile: { id: 'u1', full_name: 'Alice' } },
+      ],
+    };
+    mockSingle.mockResolvedValue({ data: mockTeam, error: null });
+    mockEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ select: mockSelect });
+
+    const { getTeam } = await import('@/lib/actions/teams');
+    const result = await getTeam('t1');
+
+    expect(mockFrom).toHaveBeenCalledWith('teams');
+    expect(result).toEqual(mockTeam);
+  });
+
+  it('updateTeam updates team fields', async () => {
+    const mockTeam = { id: 't1', name: 'Renamed' };
+    mockSingle.mockResolvedValue({ data: mockTeam, error: null });
+    mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
+    mockUpdate.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ update: mockUpdate });
+
+    const { updateTeam } = await import('@/lib/actions/teams');
+    const result = await updateTeam({ id: 't1', name: 'Renamed' });
+
+    expect(result).toEqual(mockTeam);
+    expect(mockUpdate).toHaveBeenCalledWith({ name: 'Renamed' });
+  });
+
   it('getTeamMembers returns members for a team', async () => {
     const mockMembers = [
       { id: 'tm1', joined_at: '', profile: { id: 'u1', full_name: 'Jane' } },

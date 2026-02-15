@@ -131,6 +131,75 @@ describe('Cycle actions', () => {
     expect(mockUpdate).toHaveBeenCalledWith({ is_active: false });
   });
 
+  it('getCycle returns a single cycle', async () => {
+    const mockCycle = { id: 'c1', name: 'Q1', start_date: '2026-01-01' };
+    mockSingle.mockResolvedValue({ data: mockCycle, error: null });
+    mockEq.mockReturnValue({ single: mockSingle });
+    mockSelect.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ select: mockSelect });
+
+    const { getCycle } = await import('@/lib/actions/cycles');
+    const result = await getCycle('c1');
+
+    expect(mockFrom).toHaveBeenCalledWith('okr_cycles');
+    expect(result).toEqual(mockCycle);
+  });
+
+  it('updateCycle updates cycle fields', async () => {
+    const mockCycle = { id: 'c1', name: 'Q2 Renamed' };
+    mockSingle.mockResolvedValue({ data: mockCycle, error: null });
+    mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
+    mockUpdate.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ update: mockUpdate });
+
+    const { updateCycle } = await import('@/lib/actions/cycles');
+    const result = await updateCycle({ id: 'c1', name: 'Q2 Renamed' });
+
+    expect(result).toEqual(mockCycle);
+    expect(mockUpdate).toHaveBeenCalledWith({ name: 'Q2 Renamed' });
+  });
+
+  it('carryForwardObjectives carries objectives with KRs to new cycle', async () => {
+    const mockObjectives = [
+      {
+        id: 'o1',
+        organisation_id: 'org-1',
+        title: 'Ship v2',
+        description: 'Ship it',
+        type: 'team',
+        team_id: 't1',
+        owner_id: null,
+        key_results: [
+          { title: 'Complete migration', description: null, target_value: 100, unit: '%', assignee_id: 'u1' },
+        ],
+      },
+    ];
+
+    // First call: fetch objectives
+    mockIn.mockResolvedValue({ data: mockObjectives, error: null });
+    mockEq.mockReturnValue({ in: mockIn });
+    mockSelect.mockReturnValue({ eq: mockEq });
+
+    // Second call: insert new objective
+    const mockNewObj = { id: 'o2', title: 'Ship v2', cycle_id: 'c2', score: 0 };
+    const mockObjSingle = vi.fn().mockResolvedValue({ data: mockNewObj, error: null });
+    const mockObjInsert = vi.fn().mockReturnValue({ select: () => ({ single: mockObjSingle }) });
+
+    // Third call: insert KRs
+    const mockKRsInsert = vi.fn().mockResolvedValue({ error: null });
+
+    mockFrom
+      .mockReturnValueOnce({ select: mockSelect })
+      .mockReturnValueOnce({ insert: mockObjInsert })
+      .mockReturnValueOnce({ insert: mockKRsInsert });
+
+    const { carryForwardObjectives } = await import('@/lib/actions/cycles');
+    const result = await carryForwardObjectives('c1', 'c2');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual(mockNewObj);
+  });
+
   it('carryForwardObjectives returns empty array when no incomplete objectives', async () => {
     mockIn.mockResolvedValue({ data: [], error: null });
     mockEq.mockReturnValue({ in: mockIn });

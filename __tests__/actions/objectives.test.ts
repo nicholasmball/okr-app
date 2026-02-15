@@ -76,6 +76,58 @@ describe('Objectives actions', () => {
     expect(result).toEqual(mockObj);
   });
 
+  it('getObjectivesForUser returns objectives for user with teams', async () => {
+    // First call: get team memberships
+    const mockMembershipEq = vi.fn().mockResolvedValue({ data: [{ team_id: 't1' }], error: null });
+    const mockMembershipSelect = vi.fn().mockReturnValue({ eq: mockMembershipEq });
+
+    // Second call: get objectives with or/order chain
+    const mockObjectives = [
+      { id: 'o1', type: 'team', team_id: 't1' },
+      { id: 'o2', type: 'individual', owner_id: 'u1' },
+    ];
+    const mockOrder2 = vi.fn().mockResolvedValue({ data: mockObjectives, error: null });
+    const mockOrder1 = vi.fn().mockReturnValue({ order: mockOrder2 });
+    mockOr.mockReturnValue({ order: mockOrder1 });
+    mockEq.mockReturnValue({ or: mockOr });
+    mockSelect.mockReturnValue({ eq: mockEq });
+
+    mockFrom
+      .mockReturnValueOnce({ select: mockMembershipSelect })
+      .mockReturnValueOnce({ select: mockSelect });
+
+    const { getObjectivesForUser } = await import('@/lib/actions/objectives');
+    const result = await getObjectivesForUser('u1', 'c1');
+
+    expect(mockFrom).toHaveBeenCalledWith('team_memberships');
+    expect(mockFrom).toHaveBeenCalledWith('objectives');
+    expect(result).toEqual(mockObjectives);
+  });
+
+  it('getObjectivesForUser returns objectives when user has no teams', async () => {
+    // First call: empty memberships
+    const mockMembershipEq = vi.fn().mockResolvedValue({ data: [], error: null });
+    const mockMembershipSelect = vi.fn().mockReturnValue({ eq: mockMembershipEq });
+
+    // Second call: objectives with simpler or
+    const mockObjectives = [{ id: 'o2', type: 'individual', owner_id: 'u1' }];
+    const mockOrder2 = vi.fn().mockResolvedValue({ data: mockObjectives, error: null });
+    const mockOrder1 = vi.fn().mockReturnValue({ order: mockOrder2 });
+    mockOr.mockReturnValue({ order: mockOrder1 });
+    mockEq.mockReturnValue({ or: mockOr });
+    mockSelect.mockReturnValue({ eq: mockEq });
+
+    mockFrom
+      .mockReturnValueOnce({ select: mockMembershipSelect })
+      .mockReturnValueOnce({ select: mockSelect });
+
+    const { getObjectivesForUser } = await import('@/lib/actions/objectives');
+    const result = await getObjectivesForUser('u1', 'c1');
+
+    expect(result).toEqual(mockObjectives);
+    expect(mockOr).toHaveBeenCalledWith('owner_id.eq.u1');
+  });
+
   it('createObjective inserts a team objective', async () => {
     const mockObj = {
       id: 'o1',
