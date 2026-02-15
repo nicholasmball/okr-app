@@ -1,6 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ObjectiveSection } from '@/components/dashboard/objective-section';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+}));
+vi.mock('@/lib/actions/check-ins', () => ({
+  createCheckIn: vi.fn().mockResolvedValue({ id: 'ci-1' }),
+}));
 
 const mockObjectives = [
   {

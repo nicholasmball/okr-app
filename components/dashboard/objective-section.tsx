@@ -7,6 +7,7 @@ import { ScoreRing } from '@/components/okr/score-ring';
 import { StatusBadge } from '@/components/okr/status-badge';
 import { ProgressBar } from '@/components/okr/progress-bar';
 import { KeyResultRow } from '@/components/okr/key-result-row';
+import { CheckInSheet } from '@/components/okr/check-in-sheet';
 import type { KRStatus, ObjectiveType } from '@/types/database';
 import { cn } from '@/lib/utils';
 
@@ -45,9 +46,11 @@ interface ObjectiveSectionProps {
 function ExpandableObjective({
   objective,
   currentUserId,
+  onKRClick,
 }: {
   objective: Objective;
   currentUserId: string;
+  onKRClick: (kr: KeyResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -106,6 +109,7 @@ function ExpandableObjective({
                   unit={kr.unit}
                   score={kr.score}
                   status={kr.status}
+                  onClick={() => onKRClick(kr)}
                 />
               </div>
             ))}
@@ -117,7 +121,15 @@ function ExpandableObjective({
 }
 
 export function ObjectiveSection({ title, objectives, currentUserId }: ObjectiveSectionProps) {
+  const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   if (objectives.length === 0) return null;
+
+  function handleKRClick(kr: KeyResult) {
+    setSelectedKR(kr);
+    setSheetOpen(true);
+  }
 
   return (
     <section>
@@ -126,9 +138,20 @@ export function ObjectiveSection({ title, objectives, currentUserId }: Objective
       </h2>
       <div className="space-y-3">
         {objectives.map((obj) => (
-          <ExpandableObjective key={obj.id} objective={obj} currentUserId={currentUserId} />
+          <ExpandableObjective
+            key={obj.id}
+            objective={obj}
+            currentUserId={currentUserId}
+            onKRClick={handleKRClick}
+          />
         ))}
       </div>
+      <CheckInSheet
+        kr={selectedKR}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        currentUserId={currentUserId}
+      />
     </section>
   );
 }
