@@ -5,8 +5,10 @@ import { TeamHeader } from '@/components/teams/team-header';
 import { HealthSummary } from '@/components/teams/health-summary';
 import { TeamSelector } from '@/components/teams/team-selector';
 import { ObjectiveSection } from '@/components/dashboard/objective-section';
+import { CreateObjectiveDialog } from '@/components/okr/create-objective-dialog';
 import { EmptyState } from '@/components/okr/empty-state';
-import { Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Target, Plus } from 'lucide-react';
 import type { KRStatus, ObjectiveType } from '@/types/database';
 
 interface KeyResult {
@@ -98,6 +100,13 @@ export default async function TeamDetailPage({
 
   const teamLead = team.team_lead as { id: string; full_name: string; avatar_url: string | null } | null;
 
+  // Fetch people for create dialog
+  const { data: allPeople } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('organisation_id', profile?.organisation_id ?? '')
+    .order('full_name');
+
   // Fetch team objectives for active cycle
   let objectives: Objective[] = [];
   if (cycle) {
@@ -116,9 +125,26 @@ export default async function TeamDetailPage({
   return (
     <>
       <AppHeader title={team.name}>
-        {allTeams && allTeams.length > 1 && (
-          <TeamSelector teams={allTeams} currentTeamId={teamId} />
-        )}
+        <div className="flex items-center gap-2">
+          {allTeams && allTeams.length > 1 && (
+            <TeamSelector teams={allTeams} currentTeamId={teamId} />
+          )}
+          {cycle && (
+            <CreateObjectiveDialog
+              organisationId={profile?.organisation_id ?? ''}
+              cycleId={cycle.id}
+              teams={allTeams ?? []}
+              people={allPeople ?? []}
+              defaultType="team"
+              defaultTeamId={teamId}
+            >
+              <Button size="sm">
+                <Plus className="mr-1 h-4 w-4" />
+                New Objective
+              </Button>
+            </CreateObjectiveDialog>
+          )}
+        </div>
       </AppHeader>
       <div className="flex-1 space-y-6 p-6">
         <TeamHeader

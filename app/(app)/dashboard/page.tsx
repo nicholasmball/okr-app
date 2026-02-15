@@ -3,8 +3,10 @@ import { redirect } from 'next/navigation';
 import { AppHeader } from '@/components/layout/app-header';
 import { CycleHeader } from '@/components/dashboard/cycle-header';
 import { ObjectiveSection } from '@/components/dashboard/objective-section';
+import { CreateObjectiveDialog } from '@/components/okr/create-objective-dialog';
 import { EmptyState } from '@/components/okr/empty-state';
-import { Target, CalendarDays } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Target, CalendarDays, Plus } from 'lucide-react';
 import type { ObjectiveType, KRStatus } from '@/types/database';
 
 export const metadata = { title: 'My OKRs' };
@@ -83,6 +85,19 @@ export default async function DashboardPage() {
     );
   }
 
+  // Fetch teams and people for the create dialog
+  const { data: allTeams } = await supabase
+    .from('teams')
+    .select('id, name')
+    .eq('organisation_id', profile.organisation_id)
+    .order('name');
+
+  const { data: allPeople } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .eq('organisation_id', profile.organisation_id)
+    .order('full_name');
+
   // Get user's team memberships
   const { data: memberships } = await supabase
     .from('team_memberships')
@@ -124,7 +139,19 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <AppHeader title="My OKRs" />
+      <AppHeader title="My OKRs">
+        <CreateObjectiveDialog
+          organisationId={profile.organisation_id}
+          cycleId={cycle.id}
+          teams={allTeams ?? []}
+          people={allPeople ?? []}
+        >
+          <Button size="sm">
+            <Plus className="mr-1 h-4 w-4" />
+            New Objective
+          </Button>
+        </CreateObjectiveDialog>
+      </AppHeader>
       <div className="flex-1 space-y-6 p-6">
         <CycleHeader
           cycleName={cycle.name}
