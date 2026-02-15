@@ -1,0 +1,169 @@
+import { createClient } from '@/lib/supabase/server';
+import { redirect, notFound } from 'next/navigation';
+import { AppHeader } from '@/components/layout/app-header';
+import { PersonHeader } from '@/components/people/person-header';
+import { PersonObjectives } from '@/components/people/person-objectives';
+import { EmptyState } from '@/components/okr/empty-state';
+import { Target } from 'lucide-react';
+import type { KRStatus, ObjectiveType } from '@/types/database';
+
+interface KeyResult {
+  id: string;
+  title: string;
+  score: number;
+  status: KRStatus;
+  current_value: number;
+  target_value: number;
+  unit: string;
+  assignee_id: string | null;
+}
+
+interface Objective {
+  id: string;
+  title: string;
+  type: ObjectiveType;
+  score: number;
+  status: string;
+  key_results: KeyResult[];
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ userId: string }> }) {
+  const { userId } = await params;
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', userId)
+    .single();
+
+  return { title: profile?.full_name ?? 'Person' };
+}
+
+export default async function PersonDetailPage({
+  params,
+}: {
+  params: Promise<{ userId: string }>;
+}) {
+  const { userId } = await params;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect('/login');
+
+  // Fetch the person's profile
+  const { data: person, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, avatar_url, role, organisation_id')
+    .eq('id', userId)
+    .single();
+
+  if (error || !person) notFound();
+
+  // Fetch their team memberships
+  const { data: memberships } = await supabase
+    .from('team_memberships')
+    .select('team:teams(id, name)')
+    .eq('user_id', userId);
+
+  const teamNames = (memberships ?? [])
+    .map((m: { team: { id: string; name: string } | { id: string; name: string }[] | null }) => {
+      const t = m.team;
+      if (!t) return null;
+      if (Array.isArray(t)) return t[0]?.name ?? null;
+      return t.name;
+    })
+    .filter(Boolean) as string[];
+
+  // Get active cycle
+  const { data: cycle } = await supabase
+    .from('okr_cycles')
+    .select('*')
+    .eq('organisation_id', person.organisation_id ?? '')
+    .eq('is_active', true)
+    .single();
+
+  // Fetch objectives where this person has assigned KRs or owns individual objectives
+  let objectives: Objective[] = [];
+  if (cycle) {
+    // Get objectives with KRs assigned to this person
+    const { data: krObjectives } = await supabase
+      .from('objectives')
+      .select(
+        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
+      )
+      .eq('cycle_id', cycle.id)
+      .eq('organisation_id', person.organisation_id ?? '')
+      .in('type', ['team', 'cross_cutting']);
+
+    // Get individual objectives owned by this person
+    const { data: individualObjectives } = await supabase
+      .from('objectives')
+      .select(
+        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
+      )
+      .eq('cycle_id', cycle.id)
+      .eq('owner_id', userId)
+      .eq('type', 'individual');
+
+    // Filter team/cross-cutting objectives to only those where the person has assigned KRs
+    const relevantObjectives = (krObjectives ?? []).filter((obj: Objective) =>
+      obj.key_results.some((kr) => kr.assignee_id === userId)
+    );
+
+    // Combine and deduplicate
+    const allObjectives = [...relevantObjectives, ...(individualObjectives ?? [])] as Objective[];
+    const seen = new Set<string>();
+    objectives = allObjectives.filter((obj) => {
+      if (seen.has(obj.id)) return false;
+      seen.add(obj.id);
+      return true;
+    });
+  }
+
+  // Calculate overall score from this person's KRs
+  const personKRs = objectives.flatMap((obj) =>
+    obj.key_results.filter(
+      (kr) => kr.assignee_id === userId || obj.type === 'individual'
+    )
+  );
+  const avgScore =
+    personKRs.length > 0
+      ? personKRs.reduce((sum, kr) => sum + kr.score, 0) / personKRs.length
+      : 0;
+
+  return (
+    <>
+      <AppHeader title={person.full_name} />
+      <div className="flex-1 space-y-6 p-6">
+        <PersonHeader
+          fullName={person.full_name}
+          email={person.email}
+          avatarUrl={person.avatar_url}
+          role={person.role}
+          teamNames={teamNames}
+          score={avgScore}
+          krCount={personKRs.length}
+        />
+
+        {!cycle ? (
+          <EmptyState
+            icon={<Target className="h-10 w-10" />}
+            title="No active cycle"
+            description="There's no active OKR cycle to display objectives for."
+          />
+        ) : objectives.length === 0 ? (
+          <EmptyState
+            icon={<Target className="h-10 w-10" />}
+            title="No objectives"
+            description={`${person.full_name} has no objectives or assigned KRs in this cycle.`}
+          />
+        ) : (
+          <PersonObjectives objectives={objectives} personId={userId} />
+        )}
+      </div>
+    </>
+  );
+}

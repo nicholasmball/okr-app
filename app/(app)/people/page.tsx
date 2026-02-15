@@ -1,19 +1,166 @@
+import { Suspense } from 'react';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import { AppHeader } from '@/components/layout/app-header';
 import { EmptyState } from '@/components/okr/empty-state';
-import { UserCircle } from 'lucide-react';
+import { PersonCard } from '@/components/people/person-card';
+import { PeopleFilter } from '@/components/people/people-filter';
+import { Users } from 'lucide-react';
 
 export const metadata = { title: 'People' };
 
-export default function PeoplePage() {
+export default async function PeoplePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; team?: string }>;
+}) {
+  const { q, team } = await searchParams;
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect('/login');
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('organisation_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.organisation_id) {
+    return (
+      <>
+        <AppHeader title="People" />
+        <div className="flex-1 p-6">
+          <EmptyState
+            icon={<Users className="h-10 w-10" />}
+            title="No organisation yet"
+            description="Join an organisation to see people."
+          />
+        </div>
+      </>
+    );
+  }
+
+  // Fetch all teams for filter
+  const { data: allTeams } = await supabase
+    .from('teams')
+    .select('id, name')
+    .eq('organisation_id', profile.organisation_id)
+    .order('name');
+
+  // Fetch all people in the org with their team memberships
+  const { data: people } = await supabase
+    .from('profiles')
+    .select(
+      'id, full_name, email, avatar_url, role, team_memberships(team_id, team:teams(id, name))'
+    )
+    .eq('organisation_id', profile.organisation_id)
+    .order('full_name');
+
+  // Get active cycle for scoring
+  const { data: cycle } = await supabase
+    .from('okr_cycles')
+    .select('id')
+    .eq('organisation_id', profile.organisation_id)
+    .eq('is_active', true)
+    .single();
+
+  // Fetch all KRs with assignees for scoring (if active cycle)
+  let krsByAssignee: Record<string, { score: number }[]> = {};
+  if (cycle) {
+    const { data: allKRs } = await supabase
+      .from('key_results')
+      .select('assignee_id, score, objective:objectives!inner(cycle_id)')
+      .eq('objective.cycle_id', cycle.id)
+      .not('assignee_id', 'is', null);
+
+    if (allKRs) {
+      for (const kr of allKRs) {
+        const aid = kr.assignee_id as string;
+        if (!krsByAssignee[aid]) krsByAssignee[aid] = [];
+        krsByAssignee[aid].push({ score: kr.score });
+      }
+    }
+  }
+
+  let filtered = people ?? [];
+
+  // Filter by team
+  if (team) {
+    filtered = filtered.filter((person) =>
+      (person.team_memberships as { team_id: string }[])?.some(
+        (m) => m.team_id === team
+      )
+    );
+  }
+
+  // Filter by search query
+  if (q) {
+    const lower = q.toLowerCase();
+    filtered = filtered.filter(
+      (person) =>
+        person.full_name.toLowerCase().includes(lower) ||
+        person.email.toLowerCase().includes(lower)
+    );
+  }
+
   return (
     <>
       <AppHeader title="People" />
-      <div className="flex-1 p-6">
-        <EmptyState
-          icon={<UserCircle className="h-10 w-10" />}
-          title="No team members yet"
-          description="Team members will appear here once they join your organisation."
-        />
+      <div className="flex-1 space-y-4 p-6">
+        <Suspense>
+          <PeopleFilter teams={allTeams ?? []} />
+        </Suspense>
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={<Users className="h-10 w-10" />}
+            title="No people found"
+            description={
+              q || team
+                ? 'Try adjusting your search or filter.'
+                : 'People will appear here once they join your organisation.'
+            }
+          />
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((person) => {
+              const memberships = person.team_memberships as {
+                team_id: string;
+                team: { id: string; name: string }[] | { id: string; name: string } | null;
+              }[];
+              const firstMembership = memberships?.[0];
+              const t = firstMembership?.team;
+              const teamName = t
+                ? Array.isArray(t)
+                  ? t[0]?.name ?? null
+                  : t.name
+                : null;
+
+              const krs = krsByAssignee[person.id] ?? [];
+              const avgScore =
+                krs.length > 0
+                  ? krs.reduce((sum, kr) => sum + kr.score, 0) / krs.length
+                  : 0;
+
+              return (
+                <PersonCard
+                  key={person.id}
+                  id={person.id}
+                  fullName={person.full_name}
+                  avatarUrl={person.avatar_url}
+                  teamName={teamName}
+                  role={person.role}
+                  score={avgScore}
+                  krCount={krs.length}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );
