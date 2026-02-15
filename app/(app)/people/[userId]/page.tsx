@@ -24,6 +24,7 @@ interface Objective {
   type: ObjectiveType;
   score: number;
   status: string;
+  owner_id: string | null;
   key_results: KeyResult[];
 }
 
@@ -88,39 +89,21 @@ export default async function PersonDetailPage({
   // Fetch objectives where this person has assigned KRs or owns individual objectives
   let objectives: Objective[] = [];
   if (cycle) {
-    // Get objectives with KRs assigned to this person
-    const { data: krObjectives } = await supabase
+    // Get all objectives in this cycle for the org
+    const { data: allCycleObjectives } = await supabase
       .from('objectives')
       .select(
         '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
       )
       .eq('cycle_id', cycle.id)
-      .eq('organisation_id', person.organisation_id ?? '')
-      .in('type', ['team', 'cross_cutting']);
+      .eq('organisation_id', person.organisation_id ?? '');
 
-    // Get individual objectives owned by this person
-    const { data: individualObjectives } = await supabase
-      .from('objectives')
-      .select(
-        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
-      )
-      .eq('cycle_id', cycle.id)
-      .eq('owner_id', userId)
-      .eq('type', 'individual');
-
-    // Filter team/cross-cutting objectives to only those where the person has assigned KRs
-    const relevantObjectives = (krObjectives ?? []).filter((obj: Objective) =>
-      obj.key_results.some((kr) => kr.assignee_id === userId)
+    // Keep objectives where the person owns it OR has an assigned KR
+    objectives = ((allCycleObjectives ?? []) as Objective[]).filter(
+      (obj) =>
+        obj.owner_id === userId ||
+        obj.key_results.some((kr) => kr.assignee_id === userId)
     );
-
-    // Combine and deduplicate
-    const allObjectives = [...relevantObjectives, ...(individualObjectives ?? [])] as Objective[];
-    const seen = new Set<string>();
-    objectives = allObjectives.filter((obj) => {
-      if (seen.has(obj.id)) return false;
-      seen.add(obj.id);
-      return true;
-    });
   }
 
   // Calculate overall score from this person's KRs
