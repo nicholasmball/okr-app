@@ -43,7 +43,7 @@ describe('Organisation actions', () => {
     const mockOrg = { id: 'org-1', name: 'Acme', created_at: '', updated_at: '' };
     mockSingle.mockResolvedValue({ data: mockOrg, error: null });
     mockSelect.mockReturnValue({ single: mockSingle });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    mockFrom.mockReturnValue({ select: mockSelect, insert: mockInsert, update: mockUpdate });
 
     const { getOrganisation } = await import('@/lib/actions/organisations');
     const result = await getOrganisation();
@@ -55,7 +55,7 @@ describe('Organisation actions', () => {
   it('getOrganisation throws on error', async () => {
     mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
     mockSelect.mockReturnValue({ single: mockSingle });
-    mockFrom.mockReturnValue({ select: mockSelect });
+    mockFrom.mockReturnValue({ select: mockSelect, insert: mockInsert, update: mockUpdate });
 
     const { getOrganisation } = await import('@/lib/actions/organisations');
     await expect(getOrganisation()).rejects.toThrow('Not found');
@@ -66,14 +66,14 @@ describe('Organisation actions', () => {
 
     mockSingle.mockResolvedValue({ data: mockOrg, error: null });
     mockInsert.mockReturnValue({ select: () => ({ single: mockSingle }) });
-    mockFrom.mockReturnValueOnce({ insert: mockInsert });
+    mockFrom.mockReturnValueOnce({ select: mockSelect, insert: mockInsert, update: mockUpdate });
 
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } });
 
     const mockProfileUpdate = vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue({ error: null }),
     });
-    mockFrom.mockReturnValueOnce({ update: mockProfileUpdate });
+    mockFrom.mockReturnValueOnce({ select: mockSelect, insert: mockInsert, update: mockProfileUpdate });
 
     const { createOrganisation } = await import('@/lib/actions/organisations');
     const result = await createOrganisation('New Org');
@@ -86,7 +86,7 @@ describe('Organisation actions', () => {
     mockSingle.mockResolvedValue({ data: mockOrg, error: null });
     mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
     mockUpdate.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ update: mockUpdate });
+    mockFrom.mockReturnValue({ select: mockSelect, insert: mockInsert, update: mockUpdate });
 
     const { updateOrganisation } = await import('@/lib/actions/organisations');
     const result = await updateOrganisation('org-1', 'Updated');
