@@ -6,6 +6,7 @@ describe('HealthSummary', () => {
   it('calculates percentages correctly', () => {
     const objectives = [
       {
+        score: 0.6,
         key_results: [
           { status: 'on_track' as const },
           { status: 'on_track' as const },
@@ -23,13 +24,27 @@ describe('HealthSummary', () => {
   });
 
   it('returns null when no KRs', () => {
-    const { container } = render(<HealthSummary objectives={[{ key_results: [] }]} />);
+    const { container } = render(<HealthSummary objectives={[{ score: 0, key_results: [] }]} />);
     expect(container.innerHTML).toBe('');
+  });
+
+  it('uses custom title when provided', () => {
+    const objectives = [
+      {
+        score: 0.8,
+        key_results: [{ status: 'on_track' as const }],
+      },
+    ];
+
+    render(<HealthSummary objectives={objectives} title="Cycle Health" />);
+    expect(screen.getByText('Cycle Health')).toBeInTheDocument();
+    expect(screen.queryByText('Team Health')).not.toBeInTheDocument();
   });
 
   it('renders counts in parentheses', () => {
     const objectives = [
       {
+        score: 1,
         key_results: [
           { status: 'on_track' as const },
           { status: 'on_track' as const },

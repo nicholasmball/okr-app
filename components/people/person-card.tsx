@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { ScoreRing } from '@/components/okr/score-ring';
 import { StatusBadge } from '@/components/okr/status-badge';
 import { Badge } from '@/components/ui/badge';
-import type { KRStatus } from '@/types/database';
+import { scoreToRAG } from '@/lib/scoring';
 
 function getInitials(name: string): string {
   return name
@@ -13,12 +13,6 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2);
-}
-
-function getOverallStatus(score: number): KRStatus {
-  if (score >= 0.7) return 'on_track';
-  if (score >= 0.3) return 'at_risk';
-  return 'off_track';
 }
 
 interface PersonCardProps {
@@ -69,7 +63,7 @@ export function PersonCard({
           {krCount > 0 ? (
             <div className="flex shrink-0 items-center gap-2">
               <ScoreRing score={score} size={40} strokeWidth={3} />
-              <StatusBadge status={getOverallStatus(score)} />
+              <StatusBadge status={scoreToRAG(score)} />
             </div>
           ) : (
             <span className="shrink-0 text-xs text-muted-foreground">No KRs</span>

@@ -1,18 +1,13 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import { scoreToRAG } from '@/lib/scoring';
 
-function getStrokeColour(score: number): string {
-  if (score >= 0.7) return 'stroke-status-on-track';
-  if (score >= 0.3) return 'stroke-status-at-risk';
-  return 'stroke-status-off-track';
-}
+const strokeMap = { on_track: 'stroke-status-on-track', at_risk: 'stroke-status-at-risk', off_track: 'stroke-status-off-track' };
+const fillMap = { on_track: 'fill-status-on-track', at_risk: 'fill-status-at-risk', off_track: 'fill-status-off-track' };
 
-function getTextColour(score: number): string {
-  if (score >= 0.7) return 'fill-status-on-track';
-  if (score >= 0.3) return 'fill-status-at-risk';
-  return 'fill-status-off-track';
-}
+function getStrokeColour(score: number): string { return strokeMap[scoreToRAG(score)]; }
+function getTextColour(score: number): string { return fillMap[scoreToRAG(score)]; }
 
 interface ScoreRingProps {
   score: number;

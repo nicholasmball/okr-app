@@ -5,6 +5,7 @@ import { CycleHeader } from '@/components/dashboard/cycle-header';
 import { ObjectiveSection } from '@/components/dashboard/objective-section';
 import { CreateObjectiveDialog } from '@/components/okr/create-objective-dialog';
 import { EmptyState } from '@/components/okr/empty-state';
+import { HealthSummary } from '@/components/teams/health-summary';
 import { Button } from '@/components/ui/button';
 import { Target, CalendarDays, Plus } from 'lucide-react';
 import type { ObjectiveType, KRStatus } from '@/types/database';
@@ -160,6 +161,10 @@ export default async function DashboardPage() {
           averageScore={Math.round(averageScore * 100) / 100}
           objectiveCount={allObjectives.length}
         />
+
+        {hasObjectives && (
+          <HealthSummary objectives={allObjectives} title="Cycle Health" />
+        )}
 
         {!hasObjectives ? (
           <EmptyState

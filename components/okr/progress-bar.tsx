@@ -1,10 +1,9 @@
 import { cn } from '@/lib/utils';
+import { scoreToRAG } from '@/lib/scoring';
 
-function getBarColour(score: number): string {
-  if (score >= 0.7) return 'bg-status-on-track';
-  if (score >= 0.3) return 'bg-status-at-risk';
-  return 'bg-status-off-track';
-}
+const barMap = { on_track: 'bg-status-on-track', at_risk: 'bg-status-at-risk', off_track: 'bg-status-off-track' };
+
+function getBarColour(score: number): string { return barMap[scoreToRAG(score)]; }
 
 interface ProgressBarProps {
   value: number;

@@ -1,36 +1,35 @@
 import { cn } from '@/lib/utils';
+import { countRAGDistribution } from '@/lib/scoring';
 import type { KRStatus } from '@/types/database';
 
 interface HealthSummaryProps {
   objectives: Array<{
+    score: number;
     key_results: Array<{ status: KRStatus }>;
   }>;
+  title?: string;
 }
 
-export function HealthSummary({ objectives }: HealthSummaryProps) {
+export function HealthSummary({ objectives, title = 'Team Health' }: HealthSummaryProps) {
   const allKRs = objectives.flatMap((o) => o.key_results);
-  const total = allKRs.length;
+  const dist = countRAGDistribution(allKRs.map((kr) => kr.status));
 
-  if (total === 0) return null;
+  if (dist.total === 0) return null;
 
-  const onTrack = allKRs.filter((kr) => kr.status === 'on_track').length;
-  const atRisk = allKRs.filter((kr) => kr.status === 'at_risk').length;
-  const offTrack = allKRs.filter((kr) => kr.status === 'off_track').length;
-
-  const pctOnTrack = Math.round((onTrack / total) * 100);
-  const pctAtRisk = Math.round((atRisk / total) * 100);
-  const pctOffTrack = Math.round((offTrack / total) * 100);
+  const avgObjScore = objectives.length > 0
+    ? objectives.reduce((sum, o) => sum + Number(o.score), 0) / objectives.length
+    : 0;
 
   const items = [
-    { label: 'On Track', count: onTrack, pct: pctOnTrack, color: 'bg-status-on-track' },
-    { label: 'At Risk', count: atRisk, pct: pctAtRisk, color: 'bg-status-at-risk' },
-    { label: 'Off Track', count: offTrack, pct: pctOffTrack, color: 'bg-status-off-track' },
+    { label: 'On Track', count: dist.onTrack, pct: dist.pctOnTrack, color: 'bg-status-on-track' },
+    { label: 'At Risk', count: dist.atRisk, pct: dist.pctAtRisk, color: 'bg-status-at-risk' },
+    { label: 'Off Track', count: dist.offTrack, pct: dist.pctOffTrack, color: 'bg-status-off-track' },
   ];
 
   return (
     <div className="rounded-lg border bg-card p-4">
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Team Health
+        {title}
       </h3>
       <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-muted">
         {items.map((item) => (

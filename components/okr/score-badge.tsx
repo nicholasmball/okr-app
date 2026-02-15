@@ -1,16 +1,11 @@
 import { cn } from '@/lib/utils';
+import { scoreToRAG } from '@/lib/scoring';
 
-function getScoreColour(score: number): string {
-  if (score >= 0.7) return 'text-status-on-track';
-  if (score >= 0.3) return 'text-status-at-risk';
-  return 'text-status-off-track';
-}
+const textMap = { on_track: 'text-status-on-track', at_risk: 'text-status-at-risk', off_track: 'text-status-off-track' };
+const bgMap = { on_track: 'bg-status-on-track-muted', at_risk: 'bg-status-at-risk-muted', off_track: 'bg-status-off-track-muted' };
 
-function getScoreBgColour(score: number): string {
-  if (score >= 0.7) return 'bg-status-on-track-muted';
-  if (score >= 0.3) return 'bg-status-at-risk-muted';
-  return 'bg-status-off-track-muted';
-}
+function getScoreColour(score: number): string { return textMap[scoreToRAG(score)]; }
+function getScoreBgColour(score: number): string { return bgMap[scoreToRAG(score)]; }
 
 interface ScoreBadgeProps {
   score: number;
