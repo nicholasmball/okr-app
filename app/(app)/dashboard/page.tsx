@@ -1,19 +1,164 @@
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import { AppHeader } from '@/components/layout/app-header';
+import { CycleHeader } from '@/components/dashboard/cycle-header';
+import { ObjectiveSection } from '@/components/dashboard/objective-section';
 import { EmptyState } from '@/components/okr/empty-state';
-import { Target } from 'lucide-react';
+import { Target, CalendarDays } from 'lucide-react';
+import type { ObjectiveType, KRStatus } from '@/types/database';
 
 export const metadata = { title: 'My OKRs' };
 
-export default function DashboardPage() {
+interface KeyResult {
+  id: string;
+  title: string;
+  score: number;
+  status: KRStatus;
+  current_value: number;
+  target_value: number;
+  unit: string;
+  assignee_id: string | null;
+}
+
+interface Objective {
+  id: string;
+  title: string;
+  type: ObjectiveType;
+  score: number;
+  status: string;
+  key_results: KeyResult[];
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect('/login');
+
+  // Get user's profile to find their org
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('organisation_id')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile?.organisation_id) {
+    return (
+      <>
+        <AppHeader title="My OKRs" />
+        <div className="flex-1 p-6">
+          <EmptyState
+            icon={<Target className="h-10 w-10" />}
+            title="No organisation yet"
+            description="You need to be part of an organisation to see your OKRs. Ask your admin to invite you or create a new organisation in Settings."
+          />
+        </div>
+      </>
+    );
+  }
+
+  // Get active cycle
+  const { data: cycle } = await supabase
+    .from('okr_cycles')
+    .select('*')
+    .eq('organisation_id', profile.organisation_id)
+    .eq('is_active', true)
+    .single();
+
+  if (!cycle) {
+    return (
+      <>
+        <AppHeader title="My OKRs" />
+        <div className="flex-1 p-6">
+          <EmptyState
+            icon={<CalendarDays className="h-10 w-10" />}
+            title="No active cycle"
+            description="There's no active OKR cycle. Ask your admin to create and activate one in the Cycles page."
+          />
+        </div>
+      </>
+    );
+  }
+
+  // Get user's team memberships
+  const { data: memberships } = await supabase
+    .from('team_memberships')
+    .select('team_id')
+    .eq('user_id', user.id);
+
+  const teamIds = memberships?.map((m) => m.team_id) ?? [];
+
+  // Fetch objectives for this cycle relevant to the user
+  let query = supabase
+    .from('objectives')
+    .select(
+      '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
+    )
+    .eq('cycle_id', cycle.id);
+
+  if (teamIds.length > 0) {
+    query = query.or(
+      `team_id.in.(${teamIds.join(',')}),owner_id.eq.${user.id}`
+    );
+  } else {
+    query = query.or(`owner_id.eq.${user.id}`);
+  }
+
+  const { data: objectives } = await query.order('created_at', { ascending: false });
+
+  const allObjectives: Objective[] = (objectives ?? []) as Objective[];
+
+  const teamObjectives = allObjectives.filter((o) => o.type === 'team');
+  const crossCuttingObjectives = allObjectives.filter((o) => o.type === 'cross_cutting');
+  const individualObjectives = allObjectives.filter((o) => o.type === 'individual');
+
+  const averageScore =
+    allObjectives.length > 0
+      ? allObjectives.reduce((sum, o) => sum + Number(o.score), 0) / allObjectives.length
+      : 0;
+
+  const hasObjectives = allObjectives.length > 0;
+
   return (
     <>
       <AppHeader title="My OKRs" />
-      <div className="flex-1 p-6">
-        <EmptyState
-          icon={<Target className="h-10 w-10" />}
-          title="No objectives yet"
-          description="Your objectives and key results will appear here once they're created."
+      <div className="flex-1 space-y-6 p-6">
+        <CycleHeader
+          cycleName={cycle.name}
+          startDate={cycle.start_date}
+          endDate={cycle.end_date}
+          averageScore={Math.round(averageScore * 100) / 100}
+          objectiveCount={allObjectives.length}
         />
+
+        {!hasObjectives ? (
+          <EmptyState
+            icon={<Target className="h-10 w-10" />}
+            title="No objectives yet"
+            description="Your objectives and key results will appear here once they're created for this cycle."
+          />
+        ) : (
+          <div className="space-y-8">
+            <ObjectiveSection
+              title="Team Objectives"
+              objectives={teamObjectives}
+              currentUserId={user.id}
+            />
+            <ObjectiveSection
+              title="Cross-Cutting Objectives"
+              objectives={crossCuttingObjectives}
+              currentUserId={user.id}
+            />
+            <ObjectiveSection
+              title="Individual Objectives"
+              objectives={individualObjectives}
+              currentUserId={user.id}
+            />
+          </div>
+        )}
       </div>
     </>
   );
