@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/okr/status-badge';
 import { ProgressBar } from '@/components/okr/progress-bar';
 import { KeyResultRow } from '@/components/okr/key-result-row';
 import { CheckInSheet } from '@/components/okr/check-in-sheet';
+import { AvatarGroup } from '@/components/okr/avatar-group';
 import type { KRStatus, ObjectiveType } from '@/types/database';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,12 @@ const typeLabels: Record<ObjectiveType, string> = {
   cross_cutting: 'Cross-Cutting',
   individual: 'Individual',
 };
+
+interface Assignee {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+}
 
 interface KeyResult {
   id: string;
@@ -26,6 +33,7 @@ interface KeyResult {
   target_value: number;
   unit: string;
   assignee_id: string | null;
+  assignee?: Assignee | null;
 }
 
 interface Objective {
@@ -79,7 +87,16 @@ function ExpandableObjective({
             <StatusBadge status={krStatus as KRStatus} />
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-3">
+          {(() => {
+            const assignees = objective.key_results
+              .filter((kr): kr is KeyResult & { assignee: Assignee } => kr.assignee != null)
+              .map((kr) => kr.assignee);
+            const unique = assignees.filter(
+              (a, i, arr) => arr.findIndex((x) => x.id === a.id) === i
+            );
+            return unique.length > 0 ? <AvatarGroup members={unique} max={3} size="sm" /> : null;
+          })()}
           <span className="text-xs text-muted-foreground">
             {objective.key_results.length} KR{objective.key_results.length !== 1 ? 's' : ''}
           </span>
@@ -109,6 +126,7 @@ function ExpandableObjective({
                   unit={kr.unit}
                   score={kr.score}
                   status={kr.status}
+                  assignee={kr.assignee}
                   onClick={() => onKRClick(kr)}
                 />
               </div>

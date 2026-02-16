@@ -113,7 +113,7 @@ export default async function TeamDetailPage({
     const { data } = await supabase
       .from('objectives')
       .select(
-        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
+        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url))'
       )
       .eq('team_id', teamId)
       .eq('cycle_id', cycle.id)
