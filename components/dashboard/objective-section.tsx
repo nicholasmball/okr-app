@@ -69,7 +69,7 @@ function ExpandableObjective({
     : ('on_track' as KRStatus);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader
         className="flex cursor-pointer flex-row items-start gap-4 space-y-0 pb-3"
         onClick={() => setExpanded(!expanded)}
