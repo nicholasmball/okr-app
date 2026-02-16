@@ -128,6 +128,43 @@ describe('Profile actions', () => {
     );
   });
 
+  it('setManager updates manager_id and returns data', async () => {
+    const mockProfile = {
+      id: 'u2',
+      full_name: 'Jane Doe',
+      manager_id: 'u1',
+    };
+    mockSingle.mockResolvedValue({ data: mockProfile, error: null });
+    mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
+    mockUpdate.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ update: mockUpdate });
+
+    const { setManager } = await import('@/lib/actions/profiles');
+    const result = await setManager({ userId: 'u2', managerId: 'u1' });
+
+    expect(result).toEqual(mockProfile);
+    expect(mockFrom).toHaveBeenCalledWith('profiles');
+    expect(mockUpdate).toHaveBeenCalledWith({ manager_id: 'u1' });
+  });
+
+  it('setManager clears manager when null', async () => {
+    const mockProfile = {
+      id: 'u2',
+      full_name: 'Jane Doe',
+      manager_id: null,
+    };
+    mockSingle.mockResolvedValue({ data: mockProfile, error: null });
+    mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
+    mockUpdate.mockReturnValue({ eq: mockEq });
+    mockFrom.mockReturnValue({ update: mockUpdate });
+
+    const { setManager } = await import('@/lib/actions/profiles');
+    const result = await setManager({ userId: 'u2', managerId: null });
+
+    expect(result).toEqual(mockProfile);
+    expect(mockUpdate).toHaveBeenCalledWith({ manager_id: null });
+  });
+
   it('getOrgProfiles throws on error', async () => {
     mockOrder.mockResolvedValue({
       data: null,

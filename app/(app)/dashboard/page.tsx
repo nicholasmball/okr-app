@@ -100,11 +100,18 @@ export default async function DashboardPage() {
     .eq('organisation_id', profile.organisation_id)
     .order('name');
 
-  const { data: allPeople } = await supabase
+  const { data: allPeopleRaw } = await supabase
     .from('profiles')
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, manager_id')
     .eq('organisation_id', profile.organisation_id)
     .order('full_name');
+
+  // Sort so direct reports appear first in pickers
+  const allPeople = (allPeopleRaw ?? []).sort((a, b) => {
+    const aReport = a.manager_id === user.id ? 0 : 1;
+    const bReport = b.manager_id === user.id ? 0 : 1;
+    return aReport - bReport || a.full_name.localeCompare(b.full_name);
+  });
 
   // Get user's team memberships
   const { data: memberships } = await supabase

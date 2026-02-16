@@ -60,14 +60,26 @@ export default async function PersonDetailPage({
 
   if (!user) redirect('/login');
 
-  // Fetch the person's profile
+  // Fetch the person's profile (including manager)
   const { data: person, error } = await supabase
     .from('profiles')
-    .select('id, full_name, email, avatar_url, role, organisation_id')
+    .select('id, full_name, email, avatar_url, role, organisation_id, manager_id, manager:profiles!manager_id(id, full_name)')
     .eq('id', userId)
     .single();
 
   if (error || !person) notFound();
+
+  const managerData = person.manager as { id: string; full_name: string } | { id: string; full_name: string }[] | null;
+  const manager = managerData
+    ? Array.isArray(managerData) ? managerData[0] ?? null : managerData
+    : null;
+
+  // Fetch direct reports
+  const { data: directReports } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .eq('manager_id', userId)
+    .order('full_name');
 
   // Fetch their team memberships
   const { data: memberships } = await supabase
@@ -150,6 +162,8 @@ export default async function PersonDetailPage({
           teamNames={teamNames}
           score={avgScore}
           krCount={personKRs.length}
+          manager={manager}
+          directReports={directReports ?? []}
         />
 
         {!cycle ? (

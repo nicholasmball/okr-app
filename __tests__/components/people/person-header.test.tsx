@@ -44,4 +44,41 @@ describe('PersonHeader', () => {
     render(<PersonHeader {...baseProps} krCount={0} score={0} />);
     expect(screen.queryByText('0 KRs')).not.toBeInTheDocument();
   });
+
+  it('renders manager link when manager is provided', () => {
+    render(
+      <PersonHeader
+        {...baseProps}
+        manager={{ id: 'mgr-1', full_name: 'Sarah Connor' }}
+      />
+    );
+    expect(screen.getByText('Sarah Connor')).toBeInTheDocument();
+    expect(screen.getByText('Sarah Connor').closest('a')).toHaveAttribute('href', '/people/mgr-1');
+  });
+
+  it('does not render manager section when no manager', () => {
+    render(<PersonHeader {...baseProps} manager={null} />);
+    expect(screen.queryByText('Reports to')).not.toBeInTheDocument();
+  });
+
+  it('renders direct reports as linked chips', () => {
+    render(
+      <PersonHeader
+        {...baseProps}
+        directReports={[
+          { id: 'rep-1', full_name: 'Alice Smith', avatar_url: null },
+          { id: 'rep-2', full_name: 'Bob Jones', avatar_url: null },
+        ]}
+      />
+    );
+    expect(screen.getByText('Direct reports:')).toBeInTheDocument();
+    expect(screen.getByText('Alice Smith')).toBeInTheDocument();
+    expect(screen.getByText('Bob Jones')).toBeInTheDocument();
+    expect(screen.getByText('Alice Smith').closest('a')).toHaveAttribute('href', '/people/rep-1');
+  });
+
+  it('does not render direct reports section when empty', () => {
+    render(<PersonHeader {...baseProps} directReports={[]} />);
+    expect(screen.queryByText('Direct reports:')).not.toBeInTheDocument();
+  });
 });

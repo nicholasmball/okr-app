@@ -46,6 +46,27 @@ export async function updateUserRole({
   return data;
 }
 
+export async function setManager({
+  userId,
+  managerId,
+}: {
+  userId: string;
+  managerId: string | null;
+}) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ manager_id: managerId })
+    .eq('id', userId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/');
+  return data;
+}
+
 export async function getOrgProfiles(organisationId: string) {
   const supabase = await createClient();
 

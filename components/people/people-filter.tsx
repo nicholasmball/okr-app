@@ -19,9 +19,10 @@ interface Team {
 
 interface PeopleFilterProps {
   teams: Team[];
+  hasReports?: boolean;
 }
 
-export function PeopleFilter({ teams }: PeopleFilterProps) {
+export function PeopleFilter({ teams, hasReports }: PeopleFilterProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -49,6 +50,20 @@ export function PeopleFilter({ teams }: PeopleFilterProps) {
           onChange={(e) => updateParams('q', e.target.value)}
         />
       </div>
+      {hasReports && (
+        <Select
+          value={searchParams.get('view') ?? 'all'}
+          onValueChange={(value) => updateParams('view', value)}
+        >
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Everyone" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Everyone</SelectItem>
+            <SelectItem value="reports">My Reports</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
       <Select
         value={searchParams.get('team') ?? 'all'}
         onValueChange={(value) => updateParams('team', value)}

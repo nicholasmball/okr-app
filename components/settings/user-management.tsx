@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { updateUserRole } from '@/lib/actions/profiles';
+import { updateUserRole, setManager } from '@/lib/actions/profiles';
 import type { UserRole } from '@/types/database';
 
 interface User {
@@ -19,6 +19,7 @@ interface User {
   full_name: string;
   email: string;
   role: UserRole;
+  manager_id: string | null;
 }
 
 interface UserManagementProps {
@@ -38,7 +39,15 @@ const roleLabels: Record<UserRole, string> = {
   member: 'Member',
 };
 
-function UserRow({ user, currentUserId }: { user: User; currentUserId: string }) {
+function UserRow({
+  user,
+  currentUserId,
+  allUsers,
+}: {
+  user: User;
+  currentUserId: string;
+  allUsers: User[];
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -57,9 +66,24 @@ function UserRow({ user, currentUserId }: { user: User; currentUserId: string })
     });
   }
 
+  function handleManagerChange(value: string) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await setManager({ userId: user.id, managerId: value === 'none' ? null : value });
+        router.refresh();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update manager');
+      }
+    });
+  }
+
+  // Possible managers: everyone except this user
+  const possibleManagers = allUsers.filter((u) => u.id !== user.id);
+
   return (
-    <div className="flex items-center justify-between rounded-md border px-4 py-3">
-      <div>
+    <div className="flex items-center gap-3 rounded-md border px-4 py-3">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium">{user.full_name}</span>
           {isCurrentUser && (
@@ -69,6 +93,27 @@ function UserRow({ user, currentUserId }: { user: User; currentUserId: string })
         <span className="text-xs text-muted-foreground">{user.email}</span>
         {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
       </div>
+      <Select
+        value={user.manager_id ?? 'none'}
+        onValueChange={handleManagerChange}
+        disabled={isPending}
+      >
+        <SelectTrigger className="w-[150px]">
+          <SelectValue placeholder="No manager">
+            {user.manager_id
+              ? possibleManagers.find((u) => u.id === user.manager_id)?.full_name ?? 'Unknown'
+              : 'No manager'}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">No manager</SelectItem>
+          {possibleManagers.map((m) => (
+            <SelectItem key={m.id} value={m.id}>
+              {m.full_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Select
         value={user.role}
         onValueChange={handleRoleChange}
@@ -103,7 +148,7 @@ export function UserManagement({ users, currentUserId }: UserManagementProps) {
         ) : (
           <div className="space-y-2">
             {users.map((user) => (
-              <UserRow key={user.id} user={user} currentUserId={currentUserId} />
+              <UserRow key={user.id} user={user} currentUserId={currentUserId} allUsers={users} />
             ))}
           </div>
         )}

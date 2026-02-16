@@ -73,11 +73,11 @@ export default async function SettingsPage() {
   }
 
   // Fetch all people in org
-  let allPeople: { id: string; full_name: string; email: string; role: string }[] = [];
+  let allPeople: { id: string; full_name: string; email: string; role: string; manager_id: string | null }[] = [];
   if (profile.organisation_id) {
     const { data } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role')
+      .select('id, full_name, email, role, manager_id')
       .eq('organisation_id', profile.organisation_id)
       .order('full_name');
     allPeople = (data ?? []) as typeof allPeople;
@@ -124,6 +124,7 @@ export default async function SettingsPage() {
                     full_name: p.full_name,
                     email: p.email,
                     role: p.role as 'admin' | 'team_lead' | 'member',
+                    manager_id: p.manager_id,
                   }))}
                   currentUserId={user.id}
                 />

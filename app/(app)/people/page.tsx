@@ -12,9 +12,9 @@ export const metadata = { title: 'People' };
 export default async function PeoplePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; team?: string }>;
+  searchParams: Promise<{ q?: string; team?: string; view?: string }>;
 }) {
-  const { q, team } = await searchParams;
+  const { q, team, view } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -55,7 +55,7 @@ export default async function PeoplePage({
   const { data: people } = await supabase
     .from('profiles')
     .select(
-      'id, full_name, email, avatar_url, role, team_memberships(team_id, team:teams(id, name))'
+      'id, full_name, email, avatar_url, role, manager_id, team_memberships(team_id, team:teams(id, name))'
     )
     .eq('organisation_id', profile.organisation_id)
     .order('full_name');
@@ -98,6 +98,14 @@ export default async function PeoplePage({
 
   let filtered = people ?? [];
 
+  // Check if current user has any direct reports
+  const hasReports = filtered.some((p) => p.manager_id === user.id);
+
+  // Filter by view (My Reports)
+  if (view === 'reports') {
+    filtered = filtered.filter((p) => p.manager_id === user.id);
+  }
+
   // Filter by team
   if (team) {
     filtered = filtered.filter((person) =>
@@ -122,7 +130,7 @@ export default async function PeoplePage({
       <AppHeader title="People" />
       <div className="flex-1 space-y-4 p-6">
         <Suspense>
-          <PeopleFilter teams={allTeams ?? []} />
+          <PeopleFilter teams={allTeams ?? []} hasReports={hasReports} />
         </Suspense>
 
         {filtered.length === 0 ? (

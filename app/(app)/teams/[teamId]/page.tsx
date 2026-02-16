@@ -101,12 +101,18 @@ export default async function TeamDetailPage({
 
   const teamLead = team.team_lead as { id: string; full_name: string; avatar_url: string | null } | null;
 
-  // Fetch people for create dialog
-  const { data: allPeople } = await supabase
+  // Fetch people for create dialog (direct reports sorted first)
+  const { data: allPeopleRaw } = await supabase
     .from('profiles')
-    .select('id, full_name, avatar_url')
+    .select('id, full_name, avatar_url, manager_id')
     .eq('organisation_id', profile?.organisation_id ?? '')
     .order('full_name');
+
+  const allPeople = (allPeopleRaw ?? []).sort((a, b) => {
+    const aReport = a.manager_id === user.id ? 0 : 1;
+    const bReport = b.manager_id === user.id ? 0 : 1;
+    return aReport - bReport || a.full_name.localeCompare(b.full_name);
+  });
 
   // Fetch team objectives for active cycle
   let objectives: Objective[] = [];
