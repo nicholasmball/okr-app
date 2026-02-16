@@ -95,7 +95,7 @@ export default async function DashboardPage() {
 
   const { data: allPeople } = await supabase
     .from('profiles')
-    .select('id, full_name')
+    .select('id, full_name, avatar_url')
     .eq('organisation_id', profile.organisation_id)
     .order('full_name');
 
@@ -178,16 +178,19 @@ export default async function DashboardPage() {
               title="Team Objectives"
               objectives={teamObjectives}
               currentUserId={user.id}
+              people={allPeople ?? []}
             />
             <ObjectiveSection
               title="Cross-Cutting Objectives"
               objectives={crossCuttingObjectives}
               currentUserId={user.id}
+              people={allPeople ?? []}
             />
             <ObjectiveSection
               title="Individual Objectives"
               objectives={individualObjectives}
               currentUserId={user.id}
+              people={allPeople ?? []}
             />
           </div>
         )}

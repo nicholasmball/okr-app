@@ -103,7 +103,7 @@ export default async function TeamDetailPage({
   // Fetch people for create dialog
   const { data: allPeople } = await supabase
     .from('profiles')
-    .select('id, full_name')
+    .select('id, full_name, avatar_url')
     .eq('organisation_id', profile?.organisation_id ?? '')
     .order('full_name');
 
@@ -173,6 +173,7 @@ export default async function TeamDetailPage({
             title="Team Objectives"
             objectives={objectives}
             currentUserId={user.id}
+            people={allPeople ?? []}
           />
         )}
       </div>

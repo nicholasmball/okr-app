@@ -17,6 +17,12 @@ const typeLabels: Record<ObjectiveType, string> = {
   individual: 'Individual',
 };
 
+interface Person {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
+}
+
 interface KeyResult {
   id: string;
   title: string;
@@ -40,15 +46,18 @@ interface Objective {
 interface PersonObjectivesProps {
   objectives: Objective[];
   personId: string;
+  people?: Person[];
 }
 
 function ExpandableObjective({
   objective,
   personId,
+  people,
   onKRClick,
 }: {
   objective: Objective;
   personId: string;
+  people?: Person[];
   onKRClick: (kr: KeyResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -61,7 +70,7 @@ function ExpandableObjective({
       : ('on_track' as KRStatus);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader
         className="flex cursor-pointer flex-row items-start gap-4 space-y-0 pb-3"
         onClick={() => setExpanded(!expanded)}
@@ -103,12 +112,14 @@ function ExpandableObjective({
                 )}
               >
                 <KeyResultRow
+                  krId={kr.id}
                   title={kr.title}
                   currentValue={kr.current_value}
                   targetValue={kr.target_value}
                   unit={kr.unit}
                   score={kr.score}
                   status={kr.status}
+                  people={people}
                   onClick={() => onKRClick(kr)}
                 />
               </div>
@@ -120,7 +131,7 @@ function ExpandableObjective({
   );
 }
 
-export function PersonObjectives({ objectives, personId }: PersonObjectivesProps) {
+export function PersonObjectives({ objectives, personId, people }: PersonObjectivesProps) {
   const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -156,6 +167,7 @@ export function PersonObjectives({ objectives, personId }: PersonObjectivesProps
                     key={obj.id}
                     objective={obj}
                     personId={personId}
+                    people={people}
                     onKRClick={handleKRClick}
                   />
                 ))}

@@ -86,6 +86,13 @@ export default async function PersonDetailPage({
     .eq('is_active', true)
     .single();
 
+  // Fetch people for assignee picker
+  const { data: allPeople } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .eq('organisation_id', person.organisation_id ?? '')
+    .order('full_name');
+
   // Fetch objectives where this person has assigned KRs or owns individual objectives
   let objectives: Objective[] = [];
   if (cycle) {
@@ -144,7 +151,7 @@ export default async function PersonDetailPage({
             description={`${person.full_name} has no objectives or assigned KRs in this cycle.`}
           />
         ) : (
-          <PersonObjectives objectives={objectives} personId={userId} />
+          <PersonObjectives objectives={objectives} personId={userId} people={allPeople ?? []} />
         )}
       </div>
     </>

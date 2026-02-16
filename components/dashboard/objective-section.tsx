@@ -18,6 +18,12 @@ const typeLabels: Record<ObjectiveType, string> = {
   individual: 'Individual',
 };
 
+interface Person {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
+}
+
 interface Assignee {
   id: string;
   full_name: string;
@@ -49,15 +55,18 @@ interface ObjectiveSectionProps {
   title: string;
   objectives: Objective[];
   currentUserId: string;
+  people?: Person[];
 }
 
 function ExpandableObjective({
   objective,
   currentUserId,
+  people,
   onKRClick,
 }: {
   objective: Objective;
   currentUserId: string;
+  people?: Person[];
   onKRClick: (kr: KeyResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -120,6 +129,7 @@ function ExpandableObjective({
                 )}
               >
                 <KeyResultRow
+                  krId={kr.id}
                   title={kr.title}
                   currentValue={kr.current_value}
                   targetValue={kr.target_value}
@@ -127,6 +137,7 @@ function ExpandableObjective({
                   score={kr.score}
                   status={kr.status}
                   assignee={kr.assignee}
+                  people={people}
                   onClick={() => onKRClick(kr)}
                 />
               </div>
@@ -138,7 +149,7 @@ function ExpandableObjective({
   );
 }
 
-export function ObjectiveSection({ title, objectives, currentUserId }: ObjectiveSectionProps) {
+export function ObjectiveSection({ title, objectives, currentUserId, people }: ObjectiveSectionProps) {
   const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -160,6 +171,7 @@ export function ObjectiveSection({ title, objectives, currentUserId }: Objective
             key={obj.id}
             objective={obj}
             currentUserId={currentUserId}
+            people={people}
             onKRClick={handleKRClick}
           />
         ))}

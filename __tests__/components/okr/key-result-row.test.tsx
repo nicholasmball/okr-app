@@ -27,7 +27,7 @@ describe('KeyResultRow', () => {
     render(
       <KeyResultRow
         {...defaultProps}
-        assignee={{ full_name: 'Jane Doe', avatar_url: null }}
+        assignee={{ id: 'user-1', full_name: 'Jane Doe', avatar_url: null }}
       />
     );
     expect(screen.getByText('JD')).toBeInTheDocument();

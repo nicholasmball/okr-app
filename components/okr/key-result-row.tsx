@@ -2,8 +2,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScoreBadge } from '@/components/okr/score-badge';
 import { StatusBadge } from '@/components/okr/status-badge';
 import { ProgressBar } from '@/components/okr/progress-bar';
+import { AssigneePicker } from '@/components/okr/assignee-picker';
 import type { KRStatus } from '@/types/database';
 import { cn } from '@/lib/utils';
+
+interface Person {
+  id: string;
+  full_name: string;
+  avatar_url?: string | null;
+}
 
 interface KeyResultRowProps {
   title: string;
@@ -12,10 +19,9 @@ interface KeyResultRowProps {
   unit: string;
   score: number;
   status: KRStatus;
-  assignee?: {
-    full_name: string;
-    avatar_url?: string | null;
-  } | null;
+  krId?: string;
+  assignee?: Person | null;
+  people?: Person[];
   className?: string;
   onClick?: () => void;
 }
@@ -36,10 +42,14 @@ export function KeyResultRow({
   unit,
   score,
   status,
+  krId,
   assignee,
+  people,
   className,
   onClick,
 }: KeyResultRowProps) {
+  const canAssign = krId && people;
+
   return (
     <div
       className={cn(
@@ -61,13 +71,17 @@ export function KeyResultRow({
       <div className="flex shrink-0 items-center gap-2">
         <ScoreBadge score={score} />
         <StatusBadge status={status} />
-        {assignee && (
-          <Avatar className="h-6 w-6">
-            {assignee.avatar_url && <AvatarImage src={assignee.avatar_url} alt={assignee.full_name} />}
-            <AvatarFallback className="text-[10px]">
-              {getInitials(assignee.full_name)}
-            </AvatarFallback>
-          </Avatar>
+        {canAssign ? (
+          <AssigneePicker krId={krId} assignee={assignee} people={people} />
+        ) : (
+          assignee && (
+            <Avatar className="h-6 w-6">
+              {assignee.avatar_url && <AvatarImage src={assignee.avatar_url} alt={assignee.full_name} />}
+              <AvatarFallback className="text-[10px]">
+                {getInitials(assignee.full_name)}
+              </AvatarFallback>
+            </Avatar>
+          )
         )}
       </div>
     </div>
