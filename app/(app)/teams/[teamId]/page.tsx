@@ -9,7 +9,7 @@ import { CreateObjectiveDialog } from '@/components/okr/create-objective-dialog'
 import { EmptyState } from '@/components/okr/empty-state';
 import { Button } from '@/components/ui/button';
 import { Target, Plus } from 'lucide-react';
-import type { KRStatus, ObjectiveType } from '@/types/database';
+import type { AssignmentType, KRStatus, ObjectiveType } from '@/types/database';
 
 interface KeyResult {
   id: string;
@@ -20,6 +20,7 @@ interface KeyResult {
   target_value: number;
   unit: string;
   assignee_id: string | null;
+  assignment_type?: AssignmentType;
 }
 
 interface Objective {
@@ -113,7 +114,7 @@ export default async function TeamDetailPage({
     const { data } = await supabase
       .from('objectives')
       .select(
-        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url))'
+        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignment_type, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url), key_result_assignees(user_id, profile:profiles(id, full_name, avatar_url)))'
       )
       .eq('team_id', teamId)
       .eq('cycle_id', cycle.id)
@@ -174,6 +175,7 @@ export default async function TeamDetailPage({
             objectives={objectives}
             currentUserId={user.id}
             people={allPeople ?? []}
+            teamName={team.name}
           />
         )}
       </div>

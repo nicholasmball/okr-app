@@ -2,6 +2,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { KeyResultRow } from '@/components/okr/key-result-row';
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
+vi.mock('@/lib/actions/key-results', () => ({
+  setKRAssignmentTeam: vi.fn(),
+  setKRAssignmentIndividual: vi.fn(),
+  setKRAssignmentMulti: vi.fn(),
+  unassignKeyResult: vi.fn(),
+}));
+
 describe('KeyResultRow', () => {
   const defaultProps = {
     title: 'Reduce incidents to < 5/month',
@@ -23,7 +34,7 @@ describe('KeyResultRow', () => {
     expect(screen.getByText('On Track')).toBeInTheDocument();
   });
 
-  it('renders assignee avatar with initials', () => {
+  it('renders assignee avatar with initials via legacy assignee prop', () => {
     render(
       <KeyResultRow
         {...defaultProps}
@@ -31,6 +42,32 @@ describe('KeyResultRow', () => {
       />
     );
     expect(screen.getByText('JD')).toBeInTheDocument();
+  });
+
+  it('renders assignees from junction-based assignees prop', () => {
+    render(
+      <KeyResultRow
+        {...defaultProps}
+        assignmentType="multi_individual"
+        assignees={[
+          { id: 'u1', full_name: 'Alice Smith', avatar_url: null },
+          { id: 'u2', full_name: 'Bob Jones', avatar_url: null },
+        ]}
+      />
+    );
+    expect(screen.getByText('AS')).toBeInTheDocument();
+    expect(screen.getByText('BJ')).toBeInTheDocument();
+  });
+
+  it('renders team badge when assignment type is team', () => {
+    render(
+      <KeyResultRow
+        {...defaultProps}
+        assignmentType="team"
+        teamName="Engineering"
+      />
+    );
+    expect(screen.getByText('Engineering')).toBeInTheDocument();
   });
 
   it('calls onClick when clicked', () => {

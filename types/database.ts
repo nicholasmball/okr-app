@@ -6,6 +6,7 @@ export type UserRole = 'admin' | 'team_lead' | 'member';
 export type ObjectiveType = 'team' | 'cross_cutting' | 'individual';
 export type ObjectiveStatus = 'draft' | 'active' | 'completed' | 'cancelled';
 export type KRStatus = 'on_track' | 'at_risk' | 'off_track';
+export type AssignmentType = 'unassigned' | 'team' | 'individual' | 'multi_individual';
 
 export interface Organisation {
   id: string;
@@ -72,6 +73,7 @@ export interface KeyResult {
   id: string;
   objective_id: string;
   assignee_id: string | null;
+  assignment_type: AssignmentType;
   title: string;
   description: string | null;
   target_value: number;
@@ -81,6 +83,13 @@ export interface KeyResult {
   status: KRStatus;
   created_at: string;
   updated_at: string;
+}
+
+export interface KRAssignee {
+  id: string;
+  key_result_id: string;
+  user_id: string;
+  assigned_at: string;
 }
 
 export interface CheckIn {

@@ -170,7 +170,16 @@ describe('Cycle actions', () => {
         team_id: 't1',
         owner_id: null,
         key_results: [
-          { title: 'Complete migration', description: null, target_value: 100, unit: '%', assignee_id: 'u1' },
+          {
+            id: 'kr-old',
+            title: 'Complete migration',
+            description: null,
+            target_value: 100,
+            unit: '%',
+            assignee_id: 'u1',
+            assignment_type: 'individual',
+            key_result_assignees: [{ user_id: 'u1' }],
+          },
         ],
       },
     ];
@@ -185,19 +194,28 @@ describe('Cycle actions', () => {
     const mockObjSingle = vi.fn().mockResolvedValue({ data: mockNewObj, error: null });
     const mockObjInsert = vi.fn().mockReturnValue({ select: () => ({ single: mockObjSingle }) });
 
-    // Third call: insert KRs
-    const mockKRsInsert = vi.fn().mockResolvedValue({ error: null });
+    // Third call: insert single KR (now with .select('id').single())
+    const mockNewKR = { id: 'kr-new' };
+    const mockKRSingle = vi.fn().mockResolvedValue({ data: mockNewKR, error: null });
+    const mockKRInsert = vi.fn().mockReturnValue({ select: () => ({ single: mockKRSingle }) });
+
+    // Fourth call: insert junction rows for the new KR
+    const mockJunctionInsert = vi.fn().mockResolvedValue({ error: null });
 
     mockFrom
       .mockReturnValueOnce({ select: mockSelect })
       .mockReturnValueOnce({ insert: mockObjInsert })
-      .mockReturnValueOnce({ insert: mockKRsInsert });
+      .mockReturnValueOnce({ insert: mockKRInsert })
+      .mockReturnValueOnce({ insert: mockJunctionInsert });
 
     const { carryForwardObjectives } = await import('@/lib/actions/cycles');
     const result = await carryForwardObjectives('c1', 'c2');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual(mockNewObj);
+    expect(mockJunctionInsert).toHaveBeenCalledWith([
+      { key_result_id: 'kr-new', user_id: 'u1' },
+    ]);
   });
 
   it('carryForwardObjectives returns empty array when no incomplete objectives', async () => {

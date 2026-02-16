@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/okr/status-badge';
 import { ProgressBar } from '@/components/okr/progress-bar';
 import { KeyResultRow } from '@/components/okr/key-result-row';
 import { KRDetailSheet } from '@/components/people/kr-detail-sheet';
-import type { KRStatus, ObjectiveType } from '@/types/database';
+import type { AssignmentType, KRStatus, ObjectiveType } from '@/types/database';
 import { cn } from '@/lib/utils';
 
 const typeLabels: Record<ObjectiveType, string> = {
@@ -23,6 +23,11 @@ interface Person {
   avatar_url?: string | null;
 }
 
+interface KRAssigneeJoin {
+  user_id: string;
+  profile?: { id: string; full_name: string; avatar_url: string | null } | null;
+}
+
 interface KeyResult {
   id: string;
   title: string;
@@ -32,6 +37,8 @@ interface KeyResult {
   target_value: number;
   unit: string;
   assignee_id: string | null;
+  assignment_type?: AssignmentType;
+  key_result_assignees?: KRAssigneeJoin[];
 }
 
 interface Objective {
@@ -47,6 +54,13 @@ interface PersonObjectivesProps {
   objectives: Objective[];
   personId: string;
   people?: Person[];
+}
+
+function isUserAssigned(kr: KeyResult, userId: string): boolean {
+  if (kr.key_result_assignees && kr.key_result_assignees.length > 0) {
+    return kr.key_result_assignees.some((a) => a.user_id === userId);
+  }
+  return kr.assignee_id === userId;
 }
 
 function ExpandableObjective({
@@ -108,7 +122,7 @@ function ExpandableObjective({
                 key={kr.id}
                 className={cn(
                   'rounded-md',
-                  kr.assignee_id === personId && 'bg-primary/5 ring-1 ring-primary/20'
+                  isUserAssigned(kr, personId) && 'bg-primary/5 ring-1 ring-primary/20'
                 )}
               >
                 <KeyResultRow
@@ -119,6 +133,7 @@ function ExpandableObjective({
                   unit={kr.unit}
                   score={kr.score}
                   status={kr.status}
+                  assignmentType={kr.assignment_type}
                   people={people}
                   onClick={() => onKRClick(kr)}
                 />

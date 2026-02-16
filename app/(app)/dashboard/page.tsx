@@ -8,9 +8,14 @@ import { EmptyState } from '@/components/okr/empty-state';
 import { HealthSummary } from '@/components/teams/health-summary';
 import { Button } from '@/components/ui/button';
 import { Target, CalendarDays, Plus } from 'lucide-react';
-import type { ObjectiveType, KRStatus } from '@/types/database';
+import type { AssignmentType, ObjectiveType, KRStatus } from '@/types/database';
 
 export const metadata = { title: 'My OKRs' };
+
+interface KRAssigneeJoin {
+  user_id: string;
+  profile: { id: string; full_name: string; avatar_url: string | null } | null;
+}
 
 interface KeyResult {
   id: string;
@@ -21,6 +26,8 @@ interface KeyResult {
   target_value: number;
   unit: string;
   assignee_id: string | null;
+  assignment_type?: AssignmentType;
+  key_result_assignees?: KRAssigneeJoin[];
 }
 
 interface Objective {
@@ -111,7 +118,7 @@ export default async function DashboardPage() {
   let query = supabase
     .from('objectives')
     .select(
-      '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url))'
+      '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignment_type, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url), key_result_assignees(user_id, profile:profiles(id, full_name, avatar_url)))'
     )
     .eq('cycle_id', cycle.id);
 

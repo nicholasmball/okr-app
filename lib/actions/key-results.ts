@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import type { KRStatus } from '@/types/database';
+import type { AssignmentType, KRStatus } from '@/types/database';
 import { revalidatePath } from 'next/cache';
 
 export async function getKeyResults(objectiveId: string) {
@@ -10,7 +10,7 @@ export async function getKeyResults(objectiveId: string) {
   const { data, error } = await supabase
     .from('key_results')
     .select(
-      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url)'
+      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), key_result_assignees(user_id, profile:profiles(id, full_name, avatar_url))'
     )
     .eq('objective_id', objectiveId)
     .order('created_at');
@@ -25,7 +25,7 @@ export async function getKeyResult(krId: string) {
   const { data, error } = await supabase
     .from('key_results')
     .select(
-      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), check_ins(*, author:profiles!check_ins_author_id_fkey(id, full_name))'
+      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), key_result_assignees(user_id, profile:profiles(id, full_name, avatar_url)), check_ins(*, author:profiles!check_ins_author_id_fkey(id, full_name))'
     )
     .eq('id', krId)
     .single();
@@ -51,6 +51,8 @@ export async function createKeyResult({
 }) {
   const supabase = await createClient();
 
+  const assignmentType: AssignmentType = assigneeId ? 'individual' : 'unassigned';
+
   const { data, error } = await supabase
     .from('key_results')
     .insert({
@@ -61,6 +63,7 @@ export async function createKeyResult({
       current_value: 0,
       unit: unit ?? '%',
       assignee_id: assigneeId ?? null,
+      assignment_type: assignmentType,
       score: 0,
       status: 'on_track' as KRStatus,
     })
@@ -68,6 +71,15 @@ export async function createKeyResult({
     .single();
 
   if (error) throw new Error(error.message);
+
+  // Also insert junction row if assignee provided
+  if (assigneeId && data) {
+    await supabase.from('key_result_assignees').insert({
+      key_result_id: data.id,
+      user_id: assigneeId,
+    });
+  }
+
   revalidatePath('/');
   return data;
 }
@@ -133,12 +145,17 @@ export async function updateKeyResult({
   return data;
 }
 
-export async function assignKeyResult(krId: string, userId: string | null) {
+/** Set KR to team assignment (parent team owns it) */
+export async function setKRAssignmentTeam(krId: string) {
   const supabase = await createClient();
 
+  // Clear junction rows
+  await supabase.from('key_result_assignees').delete().eq('key_result_id', krId);
+
+  // Update assignment_type and clear legacy assignee_id
   const { data, error } = await supabase
     .from('key_results')
-    .update({ assignee_id: userId })
+    .update({ assignment_type: 'team' as AssignmentType, assignee_id: null })
     .eq('id', krId)
     .select()
     .single();
@@ -146,6 +163,89 @@ export async function assignKeyResult(krId: string, userId: string | null) {
   if (error) throw new Error(error.message);
   revalidatePath('/');
   return data;
+}
+
+/** Set KR to individual assignment (single person) */
+export async function setKRAssignmentIndividual(krId: string, userId: string) {
+  const supabase = await createClient();
+
+  // Clear existing junction rows
+  await supabase.from('key_result_assignees').delete().eq('key_result_id', krId);
+
+  // Insert single junction row
+  await supabase.from('key_result_assignees').insert({
+    key_result_id: krId,
+    user_id: userId,
+  });
+
+  // Update assignment_type + legacy assignee_id
+  const { data, error } = await supabase
+    .from('key_results')
+    .update({ assignment_type: 'individual' as AssignmentType, assignee_id: userId })
+    .eq('id', krId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/');
+  return data;
+}
+
+/** Set KR to multi-individual assignment (shared progress) */
+export async function setKRAssignmentMulti(krId: string, userIds: string[]) {
+  const supabase = await createClient();
+
+  // Clear existing junction rows
+  await supabase.from('key_result_assignees').delete().eq('key_result_id', krId);
+
+  // Insert multiple junction rows
+  if (userIds.length > 0) {
+    const rows = userIds.map((userId) => ({
+      key_result_id: krId,
+      user_id: userId,
+    }));
+    await supabase.from('key_result_assignees').insert(rows);
+  }
+
+  // Update assignment_type and clear legacy assignee_id
+  const { data, error } = await supabase
+    .from('key_results')
+    .update({ assignment_type: 'multi_individual' as AssignmentType, assignee_id: null })
+    .eq('id', krId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/');
+  return data;
+}
+
+/** Unassign KR (clear all assignees) */
+export async function unassignKeyResult(krId: string) {
+  const supabase = await createClient();
+
+  // Clear junction rows
+  await supabase.from('key_result_assignees').delete().eq('key_result_id', krId);
+
+  // Update assignment_type + legacy assignee_id
+  const { data, error } = await supabase
+    .from('key_results')
+    .update({ assignment_type: 'unassigned' as AssignmentType, assignee_id: null })
+    .eq('id', krId)
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  revalidatePath('/');
+  return data;
+}
+
+/** Legacy wrapper — calls individual/unassign for backward compat */
+export async function assignKeyResult(krId: string, userId: string | null) {
+  if (userId) {
+    return setKRAssignmentIndividual(krId, userId);
+  }
+  return unassignKeyResult(krId);
 }
 
 export async function deleteKeyResult(id: string) {

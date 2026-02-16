@@ -27,8 +27,8 @@ describe('Key Results actions', () => {
 
   it('getKeyResults returns KRs for an objective', async () => {
     const mockKRs = [
-      { id: 'kr1', title: 'Reduce incidents', assignee: null },
-      { id: 'kr2', title: 'Test coverage', assignee: null },
+      { id: 'kr1', title: 'Reduce incidents', assignee: null, key_result_assignees: [] },
+      { id: 'kr2', title: 'Test coverage', assignee: null, key_result_assignees: [] },
     ];
     mockOrder.mockResolvedValue({ data: mockKRs, error: null });
     mockEq.mockReturnValue({ order: mockOrder });
@@ -63,8 +63,37 @@ describe('Key Results actions', () => {
       current_value: 0,
       unit: '%',
       assignee_id: null,
+      assignment_type: 'unassigned',
       score: 0,
       status: 'on_track',
+    });
+  });
+
+  it('createKeyResult sets assignment_type to individual when assigneeId provided', async () => {
+    const mockKR = { id: 'kr1', title: 'KR with assignee' };
+    mockSingle.mockResolvedValue({ data: mockKR, error: null });
+    // Insert for key_results
+    const mockKRInsert = vi.fn().mockReturnValue({ select: () => ({ single: mockSingle }) });
+    // Insert for junction table
+    const mockJunctionInsert = vi.fn().mockResolvedValue({ error: null });
+
+    mockFrom
+      .mockReturnValueOnce({ insert: mockKRInsert })
+      .mockReturnValueOnce({ insert: mockJunctionInsert });
+
+    const { createKeyResult } = await import('@/lib/actions/key-results');
+    await createKeyResult({
+      objectiveId: 'o1',
+      title: 'KR with assignee',
+      assigneeId: 'u1',
+    });
+
+    expect(mockKRInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ assignment_type: 'individual', assignee_id: 'u1' })
+    );
+    expect(mockJunctionInsert).toHaveBeenCalledWith({
+      key_result_id: 'kr1',
+      user_id: 'u1',
     });
   });
 
@@ -87,32 +116,109 @@ describe('Key Results actions', () => {
     );
   });
 
-  it('assignKeyResult updates the assignee', async () => {
-    const mockKR = { id: 'kr1', assignee_id: 'u1' };
-    mockSingle.mockResolvedValue({ data: mockKR, error: null });
-    mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
-    mockUpdate.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ update: mockUpdate });
+  it('assignKeyResult delegates to setKRAssignmentIndividual for non-null userId', async () => {
+    // assignKeyResult with userId calls setKRAssignmentIndividual which:
+    // 1. Deletes from key_result_assignees
+    // 2. Inserts into key_result_assignees
+    // 3. Updates key_results
+
+    const mockDeleteEq = vi.fn().mockResolvedValue({ error: null });
+    const mockDeleteFn = vi.fn().mockReturnValue({ eq: mockDeleteEq });
+
+    const mockJunctionInsert = vi.fn().mockResolvedValue({ error: null });
+
+    const mockKR = { id: 'kr1', assignee_id: 'u1', assignment_type: 'individual' };
+    const mockUpdateSingle = vi.fn().mockResolvedValue({ data: mockKR, error: null });
+    const mockUpdateSelect = vi.fn().mockReturnValue({ single: mockUpdateSingle });
+    const mockUpdateEq = vi.fn().mockReturnValue({ select: mockUpdateSelect });
+    const mockUpdateFn = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+
+    mockFrom
+      .mockReturnValueOnce({ delete: mockDeleteFn })
+      .mockReturnValueOnce({ insert: mockJunctionInsert })
+      .mockReturnValueOnce({ update: mockUpdateFn });
 
     const { assignKeyResult } = await import('@/lib/actions/key-results');
     const result = await assignKeyResult('kr1', 'u1');
 
     expect(result).toEqual(mockKR);
-    expect(mockUpdate).toHaveBeenCalledWith({ assignee_id: 'u1' });
+    expect(mockUpdateFn).toHaveBeenCalledWith({ assignment_type: 'individual', assignee_id: 'u1' });
   });
 
-  it('assignKeyResult can unassign with null', async () => {
-    const mockKR = { id: 'kr1', assignee_id: null };
-    mockSingle.mockResolvedValue({ data: mockKR, error: null });
-    mockEq.mockReturnValue({ select: () => ({ single: mockSingle }) });
-    mockUpdate.mockReturnValue({ eq: mockEq });
-    mockFrom.mockReturnValue({ update: mockUpdate });
+  it('assignKeyResult delegates to unassignKeyResult for null userId', async () => {
+    // unassignKeyResult:
+    // 1. Deletes from key_result_assignees
+    // 2. Updates key_results
+
+    const mockDeleteEq = vi.fn().mockResolvedValue({ error: null });
+    const mockDeleteFn = vi.fn().mockReturnValue({ eq: mockDeleteEq });
+
+    const mockKR = { id: 'kr1', assignee_id: null, assignment_type: 'unassigned' };
+    const mockUpdateSingle = vi.fn().mockResolvedValue({ data: mockKR, error: null });
+    const mockUpdateSelect = vi.fn().mockReturnValue({ single: mockUpdateSingle });
+    const mockUpdateEq = vi.fn().mockReturnValue({ select: mockUpdateSelect });
+    const mockUpdateFn = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+
+    mockFrom
+      .mockReturnValueOnce({ delete: mockDeleteFn })
+      .mockReturnValueOnce({ update: mockUpdateFn });
 
     const { assignKeyResult } = await import('@/lib/actions/key-results');
     const result = await assignKeyResult('kr1', null);
 
     expect(result).toEqual(mockKR);
-    expect(mockUpdate).toHaveBeenCalledWith({ assignee_id: null });
+    expect(mockUpdateFn).toHaveBeenCalledWith({ assignment_type: 'unassigned', assignee_id: null });
+  });
+
+  it('setKRAssignmentTeam clears junction and sets team type', async () => {
+    const mockDeleteEq = vi.fn().mockResolvedValue({ error: null });
+    const mockDeleteFn = vi.fn().mockReturnValue({ eq: mockDeleteEq });
+
+    const mockKR = { id: 'kr1', assignment_type: 'team' };
+    const mockUpdateSingle = vi.fn().mockResolvedValue({ data: mockKR, error: null });
+    const mockUpdateSelect = vi.fn().mockReturnValue({ single: mockUpdateSingle });
+    const mockUpdateEq = vi.fn().mockReturnValue({ select: mockUpdateSelect });
+    const mockUpdateFn = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+
+    mockFrom
+      .mockReturnValueOnce({ delete: mockDeleteFn })
+      .mockReturnValueOnce({ update: mockUpdateFn });
+
+    const { setKRAssignmentTeam } = await import('@/lib/actions/key-results');
+    const result = await setKRAssignmentTeam('kr1');
+
+    expect(result).toEqual(mockKR);
+    expect(mockFrom).toHaveBeenCalledWith('key_result_assignees');
+    expect(mockUpdateFn).toHaveBeenCalledWith({ assignment_type: 'team', assignee_id: null });
+  });
+
+  it('setKRAssignmentMulti inserts multiple junction rows', async () => {
+    const mockDeleteEq = vi.fn().mockResolvedValue({ error: null });
+    const mockDeleteFn = vi.fn().mockReturnValue({ eq: mockDeleteEq });
+
+    const mockJunctionInsert = vi.fn().mockResolvedValue({ error: null });
+
+    const mockKR = { id: 'kr1', assignment_type: 'multi_individual' };
+    const mockUpdateSingle = vi.fn().mockResolvedValue({ data: mockKR, error: null });
+    const mockUpdateSelect = vi.fn().mockReturnValue({ single: mockUpdateSingle });
+    const mockUpdateEq = vi.fn().mockReturnValue({ select: mockUpdateSelect });
+    const mockUpdateFn = vi.fn().mockReturnValue({ eq: mockUpdateEq });
+
+    mockFrom
+      .mockReturnValueOnce({ delete: mockDeleteFn })
+      .mockReturnValueOnce({ insert: mockJunctionInsert })
+      .mockReturnValueOnce({ update: mockUpdateFn });
+
+    const { setKRAssignmentMulti } = await import('@/lib/actions/key-results');
+    const result = await setKRAssignmentMulti('kr1', ['u1', 'u2', 'u3']);
+
+    expect(result).toEqual(mockKR);
+    expect(mockJunctionInsert).toHaveBeenCalledWith([
+      { key_result_id: 'kr1', user_id: 'u1' },
+      { key_result_id: 'kr1', user_id: 'u2' },
+      { key_result_id: 'kr1', user_id: 'u3' },
+    ]);
+    expect(mockUpdateFn).toHaveBeenCalledWith({ assignment_type: 'multi_individual', assignee_id: null });
   });
 
   it('getKeyResult returns a single KR with check-ins', async () => {
@@ -120,6 +226,7 @@ describe('Key Results actions', () => {
       id: 'kr1',
       title: 'Reduce incidents',
       assignee: { id: 'u1', full_name: 'Alice' },
+      key_result_assignees: [{ user_id: 'u1', profile: { id: 'u1', full_name: 'Alice', avatar_url: null } }],
       check_ins: [{ id: 'ci1', value: 50, status: 'on_track' }],
     };
     mockSingle.mockResolvedValue({ data: mockKR, error: null });

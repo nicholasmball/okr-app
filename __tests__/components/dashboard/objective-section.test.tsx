@@ -8,6 +8,12 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/actions/check-ins', () => ({
   createCheckIn: vi.fn().mockResolvedValue({ id: 'ci-1' }),
 }));
+vi.mock('@/lib/actions/key-results', () => ({
+  setKRAssignmentTeam: vi.fn(),
+  setKRAssignmentIndividual: vi.fn(),
+  setKRAssignmentMulti: vi.fn(),
+  unassignKeyResult: vi.fn(),
+}));
 
 const mockObjectives = [
   {

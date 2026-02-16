@@ -9,7 +9,7 @@ import { ProgressBar } from '@/components/okr/progress-bar';
 import { KeyResultRow } from '@/components/okr/key-result-row';
 import { CheckInSheet } from '@/components/okr/check-in-sheet';
 import { AvatarGroup } from '@/components/okr/avatar-group';
-import type { KRStatus, ObjectiveType } from '@/types/database';
+import type { AssignmentType, KRStatus, ObjectiveType } from '@/types/database';
 import { cn } from '@/lib/utils';
 
 const typeLabels: Record<ObjectiveType, string> = {
@@ -22,6 +22,11 @@ interface Person {
   id: string;
   full_name: string;
   avatar_url?: string | null;
+}
+
+interface KRAssigneeJoin {
+  user_id: string;
+  profile: { id: string; full_name: string; avatar_url: string | null } | null;
 }
 
 interface Assignee {
@@ -39,7 +44,9 @@ interface KeyResult {
   target_value: number;
   unit: string;
   assignee_id: string | null;
+  assignment_type?: AssignmentType;
   assignee?: Assignee | null;
+  key_result_assignees?: KRAssigneeJoin[];
 }
 
 interface Objective {
@@ -48,6 +55,7 @@ interface Objective {
   type: ObjectiveType;
   score: number;
   status: string;
+  team_id?: string | null;
   key_results: KeyResult[];
 }
 
@@ -56,17 +64,37 @@ interface ObjectiveSectionProps {
   objectives: Objective[];
   currentUserId: string;
   people?: Person[];
+  teamName?: string;
+}
+
+function getAssigneesFromKR(kr: KeyResult): Assignee[] {
+  if (kr.key_result_assignees && kr.key_result_assignees.length > 0) {
+    return kr.key_result_assignees
+      .filter((a): a is KRAssigneeJoin & { profile: NonNullable<KRAssigneeJoin['profile']> } => a.profile != null)
+      .map((a) => a.profile);
+  }
+  if (kr.assignee) return [kr.assignee];
+  return [];
+}
+
+function isUserAssigned(kr: KeyResult, userId: string): boolean {
+  if (kr.key_result_assignees && kr.key_result_assignees.length > 0) {
+    return kr.key_result_assignees.some((a) => a.user_id === userId);
+  }
+  return kr.assignee_id === userId;
 }
 
 function ExpandableObjective({
   objective,
   currentUserId,
   people,
+  teamName,
   onKRClick,
 }: {
   objective: Objective;
   currentUserId: string;
   people?: Person[];
+  teamName?: string;
   onKRClick: (kr: KeyResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -98,9 +126,7 @@ function ExpandableObjective({
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {(() => {
-            const assignees = objective.key_results
-              .filter((kr): kr is KeyResult & { assignee: Assignee } => kr.assignee != null)
-              .map((kr) => kr.assignee);
+            const assignees = objective.key_results.flatMap(getAssigneesFromKR);
             const unique = assignees.filter(
               (a, i, arr) => arr.findIndex((x) => x.id === a.id) === i
             );
@@ -125,7 +151,7 @@ function ExpandableObjective({
                 key={kr.id}
                 className={cn(
                   'rounded-md',
-                  kr.assignee_id === currentUserId && 'bg-primary/5 ring-1 ring-primary/20'
+                  isUserAssigned(kr, currentUserId) && 'bg-primary/5 ring-1 ring-primary/20'
                 )}
               >
                 <KeyResultRow
@@ -136,8 +162,11 @@ function ExpandableObjective({
                   unit={kr.unit}
                   score={kr.score}
                   status={kr.status}
-                  assignee={kr.assignee}
+                  assignmentType={kr.assignment_type}
+                  assignees={getAssigneesFromKR(kr)}
                   people={people}
+                  teamName={teamName}
+                  objectiveTeamId={objective.team_id}
                   onClick={() => onKRClick(kr)}
                 />
               </div>
@@ -149,7 +178,7 @@ function ExpandableObjective({
   );
 }
 
-export function ObjectiveSection({ title, objectives, currentUserId, people }: ObjectiveSectionProps) {
+export function ObjectiveSection({ title, objectives, currentUserId, people, teamName }: ObjectiveSectionProps) {
   const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
@@ -172,6 +201,7 @@ export function ObjectiveSection({ title, objectives, currentUserId, people }: O
             objective={obj}
             currentUserId={currentUserId}
             people={people}
+            teamName={teamName}
             onKRClick={handleKRClick}
           />
         ))}

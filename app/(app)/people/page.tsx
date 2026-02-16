@@ -69,19 +69,28 @@ export default async function PeoplePage({
     .single();
 
   // Fetch all KRs with assignees for scoring (if active cycle)
-  let krsByAssignee: Record<string, { score: number }[]> = {};
+  // Use junction table for multi-assignee support + fall back to legacy assignee_id
+  const krsByAssignee: Record<string, { score: number }[]> = {};
   if (cycle) {
     const { data: allKRs } = await supabase
       .from('key_results')
-      .select('assignee_id, score, objective:objectives!inner(cycle_id)')
-      .eq('objective.cycle_id', cycle.id)
-      .not('assignee_id', 'is', null);
+      .select('assignee_id, score, assignment_type, key_result_assignees(user_id), objective:objectives!inner(cycle_id)')
+      .eq('objective.cycle_id', cycle.id);
 
     if (allKRs) {
       for (const kr of allKRs) {
-        const aid = kr.assignee_id as string;
-        if (!krsByAssignee[aid]) krsByAssignee[aid] = [];
-        krsByAssignee[aid].push({ score: kr.score });
+        const junctionAssignees = (kr.key_result_assignees as { user_id: string }[]) ?? [];
+        if (junctionAssignees.length > 0) {
+          // Use junction table entries
+          for (const a of junctionAssignees) {
+            if (!krsByAssignee[a.user_id]) krsByAssignee[a.user_id] = [];
+            krsByAssignee[a.user_id].push({ score: kr.score });
+          }
+        } else if (kr.assignee_id) {
+          // Fall back to legacy assignee_id
+          if (!krsByAssignee[kr.assignee_id]) krsByAssignee[kr.assignee_id] = [];
+          krsByAssignee[kr.assignee_id].push({ score: kr.score });
+        }
       }
     }
   }

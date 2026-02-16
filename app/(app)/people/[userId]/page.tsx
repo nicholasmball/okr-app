@@ -5,7 +5,11 @@ import { PersonHeader } from '@/components/people/person-header';
 import { PersonObjectives } from '@/components/people/person-objectives';
 import { EmptyState } from '@/components/okr/empty-state';
 import { Target } from 'lucide-react';
-import type { KRStatus, ObjectiveType } from '@/types/database';
+import type { AssignmentType, KRStatus, ObjectiveType } from '@/types/database';
+
+interface KRAssigneeJoin {
+  user_id: string;
+}
 
 interface KeyResult {
   id: string;
@@ -16,6 +20,8 @@ interface KeyResult {
   target_value: number;
   unit: string;
   assignee_id: string | null;
+  assignment_type?: AssignmentType;
+  key_result_assignees?: KRAssigneeJoin[];
 }
 
 interface Objective {
@@ -100,23 +106,30 @@ export default async function PersonDetailPage({
     const { data: allCycleObjectives } = await supabase
       .from('objectives')
       .select(
-        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id)'
+        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignment_type, key_result_assignees(user_id))'
       )
       .eq('cycle_id', cycle.id)
       .eq('organisation_id', person.organisation_id ?? '');
 
-    // Keep objectives where the person owns it OR has an assigned KR
+    // Keep objectives where the person owns it OR has an assigned KR (via junction or legacy)
     objectives = ((allCycleObjectives ?? []) as Objective[]).filter(
       (obj) =>
         obj.owner_id === userId ||
-        obj.key_results.some((kr) => kr.assignee_id === userId)
+        obj.key_results.some(
+          (kr) =>
+            kr.key_result_assignees?.some((a) => a.user_id === userId) ||
+            kr.assignee_id === userId
+        )
     );
   }
 
   // Calculate overall score from this person's KRs
   const personKRs = objectives.flatMap((obj) =>
     obj.key_results.filter(
-      (kr) => kr.assignee_id === userId || obj.type === 'individual'
+      (kr) =>
+        kr.key_result_assignees?.some((a) => a.user_id === userId) ||
+        kr.assignee_id === userId ||
+        obj.type === 'individual'
     )
   );
   const avgScore =

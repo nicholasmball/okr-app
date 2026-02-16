@@ -145,10 +145,10 @@ export async function closeCycle(cycleId: string) {
 export async function carryForwardObjectives(fromCycleId: string, toCycleId: string) {
   const supabase = await createClient();
 
-  // Get incomplete objectives from the source cycle
+  // Get incomplete objectives from the source cycle (include junction assignees)
   const { data: objectives, error: fetchError } = await supabase
     .from('objectives')
-    .select('*, key_results(*)')
+    .select('*, key_results(*, key_result_assignees(user_id))')
     .eq('cycle_id', fromCycleId)
     .in('status', ['draft', 'active']);
 
@@ -179,22 +179,43 @@ export async function carryForwardObjectives(fromCycleId: string, toCycleId: str
 
     // Carry forward key results (reset progress)
     if (obj.key_results && obj.key_results.length > 0) {
-      const krInserts = obj.key_results.map(
-        (kr: { title: string; description: string | null; target_value: number; unit: string; assignee_id: string | null }) => ({
-          objective_id: newObj.id,
-          assignee_id: kr.assignee_id,
-          title: kr.title,
-          description: kr.description,
-          target_value: kr.target_value,
-          current_value: 0,
-          unit: kr.unit,
-          score: 0,
-          status: 'on_track' as const,
-        })
-      );
+      for (const kr of obj.key_results as {
+        id: string;
+        title: string;
+        description: string | null;
+        target_value: number;
+        unit: string;
+        assignee_id: string | null;
+        assignment_type: string;
+        key_result_assignees: { user_id: string }[];
+      }[]) {
+        const { data: newKR, error: krError } = await supabase
+          .from('key_results')
+          .insert({
+            objective_id: newObj.id,
+            assignee_id: kr.assignee_id,
+            assignment_type: kr.assignment_type,
+            title: kr.title,
+            description: kr.description,
+            target_value: kr.target_value,
+            current_value: 0,
+            unit: kr.unit,
+            score: 0,
+            status: 'on_track' as const,
+          })
+          .select('id')
+          .single();
+        if (krError) throw new Error(krError.message);
 
-      const { error: krError } = await supabase.from('key_results').insert(krInserts);
-      if (krError) throw new Error(krError.message);
+        // Copy junction table rows
+        if (newKR && kr.key_result_assignees?.length > 0) {
+          const assigneeRows = kr.key_result_assignees.map((a) => ({
+            key_result_id: newKR.id,
+            user_id: a.user_id,
+          }));
+          await supabase.from('key_result_assignees').insert(assigneeRows);
+        }
+      }
     }
 
     carried.push(newObj);
