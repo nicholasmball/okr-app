@@ -10,7 +10,7 @@ export async function getKeyResults(objectiveId: string) {
   const { data, error } = await supabase
     .from('key_results')
     .select(
-      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), key_result_assignees(user_id, profile:profiles(id, full_name, avatar_url))'
+      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), key_result_assignees(user_id, profile:profiles!key_result_assignees_user_id_profile_fkey(id, full_name, avatar_url))'
     )
     .eq('objective_id', objectiveId)
     .order('created_at');
@@ -25,7 +25,7 @@ export async function getKeyResult(krId: string) {
   const { data, error } = await supabase
     .from('key_results')
     .select(
-      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), key_result_assignees(user_id, profile:profiles(id, full_name, avatar_url)), check_ins(*, author:profiles!check_ins_author_id_fkey(id, full_name))'
+      '*, assignee:profiles!key_results_assignee_id_fkey(id, full_name, email, avatar_url), key_result_assignees(user_id, profile:profiles!key_result_assignees_user_id_profile_fkey(id, full_name, avatar_url)), check_ins(*, author:profiles!check_ins_author_id_fkey(id, full_name))'
     )
     .eq('id', krId)
     .single();
