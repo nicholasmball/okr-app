@@ -151,4 +151,90 @@ describe('ObjectiveSection', () => {
     const editKRButtons = screen.getAllByRole('button', { name: 'Edit key result' });
     expect(editKRButtons.length).toBe(2);
   });
+
+  it('renders ObjectiveStatusBadge on each card', () => {
+    render(
+      <ObjectiveSection
+        title="Team Objectives"
+        objectives={mockObjectives}
+        currentUserId="user1"
+      />
+    );
+    const badges = screen.getAllByText('Active');
+    expect(badges.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('hides non-active objectives by default', () => {
+    const mixed = [
+      ...mockObjectives,
+      {
+        id: 'o3',
+        title: 'Legacy cleanup',
+        type: 'team' as const,
+        score: 0.1,
+        status: 'cancelled',
+        key_results: [],
+      },
+    ];
+    render(
+      <ObjectiveSection title="Team Objectives" objectives={mixed} currentUserId="user1" />
+    );
+    expect(screen.getByText('Ship v2 platform')).toBeInTheDocument();
+    expect(screen.queryByText('Legacy cleanup')).not.toBeInTheDocument();
+  });
+
+  it('shows all objectives when "Show all" is clicked', () => {
+    const mixed = [
+      ...mockObjectives,
+      {
+        id: 'o3',
+        title: 'Legacy cleanup',
+        type: 'team' as const,
+        score: 0.1,
+        status: 'cancelled',
+        key_results: [],
+      },
+    ];
+    render(
+      <ObjectiveSection title="Team Objectives" objectives={mixed} currentUserId="user1" />
+    );
+    fireEvent.click(screen.getByText('Show all (3)'));
+    expect(screen.getByText('Legacy cleanup')).toBeInTheDocument();
+  });
+
+  it('does not show edit/check-in buttons for non-active objectives', () => {
+    const draftObjectives = [
+      {
+        id: 'o4',
+        title: 'Draft objective',
+        type: 'team' as const,
+        score: 0,
+        status: 'draft',
+        key_results: [
+          {
+            id: 'kr3',
+            title: 'Draft KR',
+            score: 0,
+            status: 'on_track' as const,
+            current_value: 0,
+            target_value: 100,
+            unit: '%',
+            assignee_id: null,
+          },
+        ],
+      },
+    ];
+    render(
+      <ObjectiveSection
+        title="Team Objectives"
+        objectives={draftObjectives}
+        currentUserId="user1"
+      />
+    );
+    // Need to show all since draft is hidden by default
+    fireEvent.click(screen.getByText('Show all (1)'));
+    fireEvent.click(screen.getByText('Draft objective'));
+    expect(screen.getByText('Draft KR')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit key result' })).not.toBeInTheDocument();
+  });
 });

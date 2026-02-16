@@ -93,4 +93,58 @@ describe('PersonObjectives', () => {
     fireEvent.click(screen.getByText('Improve platform reliability'));
     expect(screen.getByRole('button', { name: 'Edit key result' })).toBeInTheDocument();
   });
+
+  it('renders ObjectiveStatusBadge on each card', () => {
+    render(<PersonObjectives objectives={objectives} personId="user-1" />);
+    const badges = screen.getAllByText('Active');
+    expect(badges.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('hides non-active objectives by default and shows with toggle', () => {
+    const mixed = [
+      ...objectives,
+      {
+        id: 'obj-3',
+        title: 'Cancelled goal',
+        type: 'team' as const,
+        score: 0,
+        status: 'cancelled',
+        key_results: [],
+      },
+    ];
+    render(<PersonObjectives objectives={mixed} personId="user-1" />);
+    expect(screen.queryByText('Cancelled goal')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Show all (3)'));
+    expect(screen.getByText('Cancelled goal')).toBeInTheDocument();
+  });
+
+  it('disables edit/check-in for non-active objectives', () => {
+    const completed = [
+      {
+        id: 'obj-4',
+        title: 'Completed objective',
+        type: 'team' as const,
+        score: 1,
+        status: 'completed',
+        key_results: [
+          {
+            id: 'kr-3',
+            title: 'Done KR',
+            score: 1,
+            status: 'on_track' as const,
+            current_value: 100,
+            target_value: 100,
+            unit: '%',
+            assignee_id: 'user-1',
+          },
+        ],
+      },
+    ];
+    render(<PersonObjectives objectives={completed} personId="user-1" />);
+    fireEvent.click(screen.getByText('Show all (1)'));
+    fireEvent.click(screen.getByText('Completed objective'));
+    expect(screen.getByText('Done KR')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit key result' })).not.toBeInTheDocument();
+  });
 });

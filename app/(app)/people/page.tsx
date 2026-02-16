@@ -74,8 +74,9 @@ export default async function PeoplePage({
   if (cycle) {
     const { data: allKRs } = await supabase
       .from('key_results')
-      .select('assignee_id, score, assignment_type, key_result_assignees(user_id), objective:objectives!inner(cycle_id)')
-      .eq('objective.cycle_id', cycle.id);
+      .select('assignee_id, score, assignment_type, key_result_assignees(user_id), objective:objectives!inner(cycle_id, status)')
+      .eq('objective.cycle_id', cycle.id)
+      .eq('objective.status', 'active');
 
     if (allKRs) {
       for (const kr of allKRs) {

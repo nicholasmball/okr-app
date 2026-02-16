@@ -11,6 +11,7 @@ import { KeyResultRow } from '@/components/okr/key-result-row';
 import { CheckInSheet } from '@/components/okr/check-in-sheet';
 import { EditKeyResultSheet } from '@/components/okr/edit-kr-sheet';
 import { EditObjectiveDialog } from '@/components/okr/edit-objective-dialog';
+import { ObjectiveStatusBadge } from '@/components/okr/objective-status-badge';
 import { AvatarGroup } from '@/components/okr/avatar-group';
 import type { AssignmentType, KRStatus, ObjectiveType, ObjectiveStatus } from '@/types/database';
 import { cn } from '@/lib/utils';
@@ -89,6 +90,13 @@ function isUserAssigned(kr: KeyResult, userId: string): boolean {
   return kr.assignee_id === userId;
 }
 
+const statusCardStyles: Record<string, string> = {
+  draft: 'opacity-60 border-dashed',
+  active: '',
+  completed: 'opacity-75 border-green-200 dark:border-green-900',
+  cancelled: 'opacity-50 grayscale',
+};
+
 function ExpandableObjective({
   objective,
   currentUserId,
@@ -105,6 +113,7 @@ function ExpandableObjective({
   onKREdit: (kr: KeyResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const isActive = objective.status === 'active';
 
   const krStatus = objective.key_results.length > 0
     ? (objective.key_results.find((kr) => kr.status === 'off_track')?.status ??
@@ -113,7 +122,7 @@ function ExpandableObjective({
     : ('on_track' as KRStatus);
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={cn('overflow-hidden', statusCardStyles[objective.status])}>
       <CardHeader
         className="flex cursor-pointer flex-row items-start gap-4 space-y-0 pb-3"
         onClick={() => setExpanded(!expanded)}
@@ -124,6 +133,7 @@ function ExpandableObjective({
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {typeLabels[objective.type]}
             </span>
+            <ObjectiveStatusBadge status={objective.status as ObjectiveStatus} />
           </div>
           <h3 className="text-sm font-semibold leading-tight">{objective.title}</h3>
           <div className="mt-2 flex items-center gap-3">
@@ -189,11 +199,11 @@ function ExpandableObjective({
                   status={kr.status}
                   assignmentType={kr.assignment_type}
                   assignees={getAssigneesFromKR(kr)}
-                  people={people}
+                  people={isActive ? people : undefined}
                   teamName={teamName}
                   objectiveTeamId={objective.team_id}
-                  onClick={() => onKRClick(kr)}
-                  onEdit={() => onKREdit(kr)}
+                  onClick={isActive ? () => onKRClick(kr) : undefined}
+                  onEdit={isActive ? () => onKREdit(kr) : undefined}
                 />
               </div>
             ))}
@@ -209,8 +219,13 @@ export function ObjectiveSection({ title, objectives, currentUserId, people, tea
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editKR, setEditKR] = useState<KeyResult | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   if (objectives.length === 0) return null;
+
+  const activeObjectives = objectives.filter((o) => o.status === 'active');
+  const hasNonActive = activeObjectives.length < objectives.length;
+  const visibleObjectives = showAll ? objectives : activeObjectives;
 
   function handleKRClick(kr: KeyResult) {
     setSelectedKR(kr);
@@ -222,13 +237,28 @@ export function ObjectiveSection({ title, objectives, currentUserId, people, tea
     setEditSheetOpen(true);
   }
 
+  if (visibleObjectives.length === 0 && !hasNonActive) {
+    return null;
+  }
+
   return (
     <section>
-      <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {title}
-      </h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          {title}
+        </h2>
+        {hasNonActive && (
+          <button
+            type="button"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll ? 'Show active only' : `Show all (${objectives.length})`}
+          </button>
+        )}
+      </div>
       <div className="space-y-3">
-        {objectives.map((obj) => (
+        {visibleObjectives.map((obj) => (
           <ExpandableObjective
             key={obj.id}
             objective={obj}

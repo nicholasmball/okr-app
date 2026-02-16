@@ -123,8 +123,9 @@ export default async function PersonDetailPage({
     );
   }
 
-  // Calculate overall score from this person's KRs
-  const personKRs = objectives.flatMap((obj) =>
+  // Calculate overall score from this person's KRs (active objectives only)
+  const activeObjectives = objectives.filter((obj) => obj.status === 'active');
+  const personKRs = activeObjectives.flatMap((obj) =>
     obj.key_results.filter(
       (kr) =>
         kr.key_result_assignees?.some((a) => a.user_id === userId) ||

@@ -138,9 +138,10 @@ export default async function DashboardPage() {
   const crossCuttingObjectives = allObjectives.filter((o) => o.type === 'cross_cutting');
   const individualObjectives = allObjectives.filter((o) => o.type === 'individual');
 
+  const activeObjectives = allObjectives.filter((o) => o.status === 'active');
   const averageScore =
-    allObjectives.length > 0
-      ? allObjectives.reduce((sum, o) => sum + Number(o.score), 0) / allObjectives.length
+    activeObjectives.length > 0
+      ? activeObjectives.reduce((sum, o) => sum + Number(o.score), 0) / activeObjectives.length
       : 0;
 
   const hasObjectives = allObjectives.length > 0;
@@ -166,7 +167,7 @@ export default async function DashboardPage() {
           startDate={cycle.start_date}
           endDate={cycle.end_date}
           averageScore={Math.round(averageScore * 100) / 100}
-          objectiveCount={allObjectives.length}
+          objectiveCount={activeObjectives.length}
         />
 
         {hasObjectives && (
