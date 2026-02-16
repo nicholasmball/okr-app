@@ -1,15 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ScoreRing } from '@/components/okr/score-ring';
 import { StatusBadge } from '@/components/okr/status-badge';
 import { ProgressBar } from '@/components/okr/progress-bar';
 import { KeyResultRow } from '@/components/okr/key-result-row';
 import { CheckInSheet } from '@/components/okr/check-in-sheet';
+import { EditKeyResultSheet } from '@/components/okr/edit-kr-sheet';
+import { EditObjectiveDialog } from '@/components/okr/edit-objective-dialog';
 import { AvatarGroup } from '@/components/okr/avatar-group';
-import type { AssignmentType, KRStatus, ObjectiveType } from '@/types/database';
+import type { AssignmentType, KRStatus, ObjectiveType, ObjectiveStatus } from '@/types/database';
 import { cn } from '@/lib/utils';
 
 const typeLabels: Record<ObjectiveType, string> = {
@@ -38,6 +41,7 @@ interface Assignee {
 interface KeyResult {
   id: string;
   title: string;
+  description?: string | null;
   score: number;
   status: KRStatus;
   current_value: number;
@@ -52,6 +56,7 @@ interface KeyResult {
 interface Objective {
   id: string;
   title: string;
+  description?: string | null;
   type: ObjectiveType;
   score: number;
   status: string;
@@ -90,12 +95,14 @@ function ExpandableObjective({
   people,
   teamName,
   onKRClick,
+  onKREdit,
 }: {
   objective: Objective;
   currentUserId: string;
   people?: Person[];
   teamName?: string;
   onKRClick: (kr: KeyResult) => void;
+  onKREdit: (kr: KeyResult) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -132,6 +139,24 @@ function ExpandableObjective({
             );
             return unique.length > 0 ? <AvatarGroup members={unique} max={3} size="sm" /> : null;
           })()}
+          <EditObjectiveDialog
+            objective={{
+              id: objective.id,
+              title: objective.title,
+              description: objective.description ?? null,
+              status: objective.status as ObjectiveStatus,
+            }}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={(e) => e.stopPropagation()}
+              aria-label="Edit objective"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+          </EditObjectiveDialog>
           <span className="text-xs text-muted-foreground">
             {objective.key_results.length} KR{objective.key_results.length !== 1 ? 's' : ''}
           </span>
@@ -168,6 +193,7 @@ function ExpandableObjective({
                   teamName={teamName}
                   objectiveTeamId={objective.team_id}
                   onClick={() => onKRClick(kr)}
+                  onEdit={() => onKREdit(kr)}
                 />
               </div>
             ))}
@@ -181,12 +207,19 @@ function ExpandableObjective({
 export function ObjectiveSection({ title, objectives, currentUserId, people, teamName }: ObjectiveSectionProps) {
   const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editKR, setEditKR] = useState<KeyResult | null>(null);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
 
   if (objectives.length === 0) return null;
 
   function handleKRClick(kr: KeyResult) {
     setSelectedKR(kr);
     setSheetOpen(true);
+  }
+
+  function handleKREdit(kr: KeyResult) {
+    setEditKR(kr);
+    setEditSheetOpen(true);
   }
 
   return (
@@ -203,6 +236,7 @@ export function ObjectiveSection({ title, objectives, currentUserId, people, tea
             people={people}
             teamName={teamName}
             onKRClick={handleKRClick}
+            onKREdit={handleKREdit}
           />
         ))}
       </div>
@@ -211,6 +245,11 @@ export function ObjectiveSection({ title, objectives, currentUserId, people, tea
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         currentUserId={currentUserId}
+      />
+      <EditKeyResultSheet
+        kr={editKR}
+        open={editSheetOpen}
+        onOpenChange={setEditSheetOpen}
       />
     </section>
   );

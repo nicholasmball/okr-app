@@ -1,6 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PersonObjectives } from '@/components/people/person-objectives';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+vi.mock('@/lib/actions/key-results', () => ({
+  updateKeyResult: vi.fn().mockResolvedValue({ id: 'kr-1' }),
+}));
+vi.mock('@/lib/actions/objectives', () => ({
+  updateObjective: vi.fn().mockResolvedValue({ id: 'obj-1' }),
+}));
 
 describe('PersonObjectives', () => {
   const objectives = [
@@ -70,5 +80,17 @@ describe('PersonObjectives', () => {
     render(<PersonObjectives objectives={teamOnly} personId="user-1" />);
     expect(screen.queryByText('Individual Objectives')).not.toBeInTheDocument();
     expect(screen.queryByText('Cross-Cutting Objectives')).not.toBeInTheDocument();
+  });
+
+  it('renders edit objective buttons', () => {
+    render(<PersonObjectives objectives={objectives} personId="user-1" />);
+    const editButtons = screen.getAllByRole('button', { name: 'Edit objective' });
+    expect(editButtons.length).toBe(2);
+  });
+
+  it('renders edit KR buttons when objective is expanded', () => {
+    render(<PersonObjectives objectives={objectives} personId="user-1" />);
+    fireEvent.click(screen.getByText('Improve platform reliability'));
+    expect(screen.getByRole('button', { name: 'Edit key result' })).toBeInTheDocument();
   });
 });

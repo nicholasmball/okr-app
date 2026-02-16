@@ -118,7 +118,7 @@ export default async function DashboardPage() {
   let query = supabase
     .from('objectives')
     .select(
-      '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignment_type, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url), key_result_assignees(user_id, profile:profiles!key_result_assignees_user_id_profile_fkey(id, full_name, avatar_url)))'
+      '*, key_results(id, title, description, score, status, current_value, target_value, unit, assignee_id, assignment_type, assignee:profiles!key_results_assignee_id_fkey(id, full_name, avatar_url), key_result_assignees(user_id, profile:profiles!key_result_assignees_user_id_profile_fkey(id, full_name, avatar_url)))'
     )
     .eq('cycle_id', cycle.id);
 

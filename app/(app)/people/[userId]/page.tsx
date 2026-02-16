@@ -106,7 +106,7 @@ export default async function PersonDetailPage({
     const { data: allCycleObjectives } = await supabase
       .from('objectives')
       .select(
-        '*, key_results(id, title, score, status, current_value, target_value, unit, assignee_id, assignment_type, key_result_assignees(user_id))'
+        '*, key_results(id, title, description, score, status, current_value, target_value, unit, assignee_id, assignment_type, key_result_assignees(user_id))'
       )
       .eq('cycle_id', cycle.id)
       .eq('organisation_id', person.organisation_id ?? '');

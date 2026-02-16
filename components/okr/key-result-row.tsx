@@ -1,12 +1,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { ScoreBadge } from '@/components/okr/score-badge';
 import { StatusBadge } from '@/components/okr/status-badge';
 import { ProgressBar } from '@/components/okr/progress-bar';
 import { AvatarGroup } from '@/components/okr/avatar-group';
 import { AssigneePicker } from '@/components/okr/assignee-picker';
 import type { AssignmentType, KRStatus } from '@/types/database';
-import { Users } from 'lucide-react';
+import { Pencil, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Person {
@@ -31,6 +32,7 @@ interface KeyResultRowProps {
   objectiveTeamId?: string | null;
   className?: string;
   onClick?: () => void;
+  onEdit?: () => void;
 }
 
 function getInitials(name: string): string {
@@ -58,6 +60,7 @@ export function KeyResultRow({
   objectiveTeamId,
   className,
   onClick,
+  onEdit,
 }: KeyResultRowProps) {
   const canAssign = krId && people;
 
@@ -88,6 +91,20 @@ export function KeyResultRow({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+        {onEdit && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            aria-label="Edit key result"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
         <ScoreBadge score={score} />
         <StatusBadge status={status} />
         {canAssign ? (

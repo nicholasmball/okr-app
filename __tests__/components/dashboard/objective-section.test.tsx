@@ -13,6 +13,10 @@ vi.mock('@/lib/actions/key-results', () => ({
   setKRAssignmentIndividual: vi.fn(),
   setKRAssignmentMulti: vi.fn(),
   unassignKeyResult: vi.fn(),
+  updateKeyResult: vi.fn().mockResolvedValue({ id: 'kr1' }),
+}));
+vi.mock('@/lib/actions/objectives', () => ({
+  updateObjective: vi.fn().mockResolvedValue({ id: 'o1' }),
 }));
 
 const mockObjectives = [
@@ -119,5 +123,32 @@ describe('ObjectiveSection', () => {
 
     fireEvent.click(screen.getByText('Ship v2 platform'));
     expect(screen.queryByText('Complete API migration')).not.toBeInTheDocument();
+  });
+
+  it('renders edit objective button on each objective card', () => {
+    render(
+      <ObjectiveSection
+        title="Team Objectives"
+        objectives={mockObjectives}
+        currentUserId="user1"
+      />
+    );
+    const editButtons = screen.getAllByRole('button', { name: 'Edit objective' });
+    expect(editButtons.length).toBe(2);
+  });
+
+  it('renders edit KR buttons when objective is expanded', () => {
+    render(
+      <ObjectiveSection
+        title="Team Objectives"
+        objectives={mockObjectives}
+        currentUserId="user1"
+      />
+    );
+
+    fireEvent.click(screen.getByText('Ship v2 platform'));
+
+    const editKRButtons = screen.getAllByRole('button', { name: 'Edit key result' });
+    expect(editKRButtons.length).toBe(2);
   });
 });

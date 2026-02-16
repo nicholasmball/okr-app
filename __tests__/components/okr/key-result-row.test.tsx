@@ -81,4 +81,24 @@ describe('KeyResultRow', () => {
     render(<KeyResultRow {...defaultProps} assignee={null} />);
     expect(screen.getByText(defaultProps.title)).toBeInTheDocument();
   });
+
+  it('renders edit button when onEdit is provided', () => {
+    const handleEdit = vi.fn();
+    render(<KeyResultRow {...defaultProps} onEdit={handleEdit} />);
+    expect(screen.getByRole('button', { name: 'Edit key result' })).toBeInTheDocument();
+  });
+
+  it('does not render edit button when onEdit is not provided', () => {
+    render(<KeyResultRow {...defaultProps} />);
+    expect(screen.queryByRole('button', { name: 'Edit key result' })).not.toBeInTheDocument();
+  });
+
+  it('calls onEdit and stops propagation when edit button is clicked', () => {
+    const handleEdit = vi.fn();
+    const handleClick = vi.fn();
+    render(<KeyResultRow {...defaultProps} onClick={handleClick} onEdit={handleEdit} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Edit key result' }));
+    expect(handleEdit).toHaveBeenCalledOnce();
+    expect(handleClick).not.toHaveBeenCalled();
+  });
 });
