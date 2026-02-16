@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Sheet,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
@@ -124,7 +125,7 @@ export function CheckInSheet({ kr, open, onOpenChange, currentUserId }: CheckInS
           <SheetTitle className="text-left text-base">Check In</SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 space-y-5 pt-2">
+        <div className="flex-1 space-y-5 px-4 pt-2">
           {/* KR info */}
           <div>
             <p className="text-sm font-medium">{kr.title}</p>
@@ -198,15 +199,6 @@ export function CheckInSheet({ kr, open, onOpenChange, currentUserId }: CheckInS
           {/* Error */}
           {error && <p className="text-sm text-destructive">{error}</p>}
 
-          {/* Submit */}
-          <Button
-            onClick={handleSubmit}
-            disabled={isPending}
-            className="w-full"
-          >
-            {isPending ? 'Saving...' : 'Save Check-in'}
-          </Button>
-
           {/* History */}
           <div className="border-t pt-4">
             <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -223,6 +215,16 @@ export function CheckInSheet({ kr, open, onOpenChange, currentUserId }: CheckInS
             )}
           </div>
         </div>
+
+        <SheetFooter className="border-t">
+          <Button
+            onClick={handleSubmit}
+            disabled={isPending}
+            className="w-full"
+          >
+            {isPending ? 'Saving...' : 'Save Check-in'}
+          </Button>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   );
