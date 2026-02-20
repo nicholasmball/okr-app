@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Trash2 } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -13,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { updateKeyResult } from '@/lib/actions/key-results';
+import { DeleteConfirmation } from '@/components/okr/delete-confirmation';
+import { updateKeyResult, deleteKeyResult } from '@/lib/actions/key-results';
 
 interface KRData {
   id: string;
@@ -115,8 +117,21 @@ function EditKRForm({
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
-      <SheetFooter className="border-t">
-        <Button type="submit" disabled={isPending || !title.trim()} className="w-full">
+      <SheetFooter className="flex-row items-center justify-between border-t">
+        <DeleteConfirmation
+          title="Delete Key Result"
+          description="This will permanently delete this key result and all its check-ins. The objective score will be recalculated."
+          onConfirm={async () => {
+            await deleteKeyResult(kr.id);
+            onOpenChange(false);
+          }}
+        >
+          <Button type="button" variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+            <Trash2 className="h-4 w-4" />
+            <span className="sr-only">Delete key result</span>
+          </Button>
+        </DeleteConfirmation>
+        <Button type="submit" disabled={isPending || !title.trim()}>
           {isPending ? 'Saving...' : 'Save Changes'}
         </Button>
       </SheetFooter>
