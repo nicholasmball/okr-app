@@ -33,6 +33,7 @@ interface CheckIn {
 interface KRData {
   id: string;
   title: string;
+  description?: string | null;
   score: number;
   status: KRStatus;
   current_value: number;
@@ -129,6 +130,9 @@ export function CheckInSheet({ kr, open, onOpenChange, currentUserId }: CheckInS
           {/* KR info */}
           <div>
             <p className="text-sm font-medium">{kr.title}</p>
+            {kr.description && (
+              <p className="mt-1 text-sm text-muted-foreground">{kr.description}</p>
+            )}
             <div className="mt-2 flex items-center gap-3">
               <ProgressBar value={value} max={kr.target_value} className="flex-1" />
               <ScoreBadge score={kr.target_value > 0 ? Math.min(value / kr.target_value, 1) : 0} />

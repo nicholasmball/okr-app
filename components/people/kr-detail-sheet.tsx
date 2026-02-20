@@ -25,6 +25,7 @@ interface CheckIn {
 interface KRDetail {
   id: string;
   title: string;
+  description?: string | null;
   score: number;
   status: KRStatus;
   current_value: number;
@@ -65,6 +66,9 @@ export function KRDetailSheet({ kr, open, onOpenChange }: KRDetailSheetProps) {
           <SheetTitle className="text-left text-base">{kr.title}</SheetTitle>
         </SheetHeader>
         <div className="mt-4 space-y-4">
+          {kr.description && (
+            <p className="text-sm text-muted-foreground">{kr.description}</p>
+          )}
           <div className="flex items-center gap-3">
             <ProgressBar value={kr.current_value} max={kr.target_value} className="flex-1" />
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
