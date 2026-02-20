@@ -36,6 +36,7 @@ interface Objective {
   type: ObjectiveType;
   score: number;
   status: string;
+  team_id: string | null;
   key_results: KeyResult[];
 }
 
@@ -194,6 +195,7 @@ export default async function DashboardPage() {
               objectives={teamObjectives}
               currentUserId={user.id}
               people={allPeople ?? []}
+              teams={allTeams ?? []}
             />
             <ObjectiveSection
               title="Cross-Cutting Objectives"

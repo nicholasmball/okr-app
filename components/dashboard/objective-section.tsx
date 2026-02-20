@@ -65,12 +65,18 @@ interface Objective {
   key_results: KeyResult[];
 }
 
+interface Team {
+  id: string;
+  name: string;
+}
+
 interface ObjectiveSectionProps {
   title: string;
   objectives: Objective[];
   currentUserId: string;
   people?: Person[];
   teamName?: string;
+  teams?: Team[];
 }
 
 function getAssigneesFromKR(kr: KeyResult): Assignee[] {
@@ -133,6 +139,11 @@ function ExpandableObjective({
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
               {typeLabels[objective.type]}
             </span>
+            {teamName && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {teamName}
+              </span>
+            )}
             <ObjectiveStatusBadge status={objective.status as ObjectiveStatus} />
           </div>
           <h3 className="text-sm font-semibold leading-tight">{objective.title}</h3>
@@ -214,7 +225,7 @@ function ExpandableObjective({
   );
 }
 
-export function ObjectiveSection({ title, objectives, currentUserId, people, teamName }: ObjectiveSectionProps) {
+export function ObjectiveSection({ title, objectives, currentUserId, people, teamName, teams }: ObjectiveSectionProps) {
   const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editKR, setEditKR] = useState<KeyResult | null>(null);
@@ -264,7 +275,7 @@ export function ObjectiveSection({ title, objectives, currentUserId, people, tea
             objective={obj}
             currentUserId={currentUserId}
             people={people}
-            teamName={teamName}
+            teamName={teamName ?? (obj.team_id && teams ? teams.find((t) => t.id === obj.team_id)?.name : undefined)}
             onKRClick={handleKRClick}
             onKREdit={handleKREdit}
           />
